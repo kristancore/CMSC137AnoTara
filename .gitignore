@@ -1,0 +1,34 @@
+# Maven
+animal-farm/target/
+animal-farm/.mvn/wrapper/maven-wrapper.jar
+
+# Java
+*.class
+*.jar
+*.war
+hs_err_pid*
+replay_pid*
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE — IntelliJ
+.idea/
+*.iml
+*.iws
+out/
+
+# IDE — VS Code
+.vscode/
+*.code-workspace
+
+# IDE — Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# PoC scratch files
+poc/*.class
