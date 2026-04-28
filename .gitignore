@@ -32,3 +32,5 @@ bin/
 
 # PoC scratch files
 poc/*.class
+
+docs/
