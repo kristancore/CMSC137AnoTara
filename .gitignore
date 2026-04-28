@@ -21,7 +21,6 @@ replay_pid*
 out/
 
 # IDE — VS Code
-.vscode/
 *.code-workspace
 
 # IDE — Eclipse
@@ -32,3 +31,7 @@ bin/
 
 # PoC scratch files
 poc/*.class
+
+docs/
+config.bat
+node_modules
