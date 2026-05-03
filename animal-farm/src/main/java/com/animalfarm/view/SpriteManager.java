@@ -57,8 +57,6 @@ public class SpriteManager {
 
     public static Image getSprite(UnitType type, int direction, int frame) {
         String animalName = type.name().toLowerCase();
-        // Fix for sprites walking backwards: 
-        // We swap the 'right' and 'left' strings here so units face the correct side.
         String dirString = direction == 1 ? "left" : "right";
         return imageCache.get(getCacheKey(animalName, dirString, frame));
     }
