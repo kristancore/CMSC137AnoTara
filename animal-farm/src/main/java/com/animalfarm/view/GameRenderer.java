@@ -21,15 +21,30 @@ public class GameRenderer {
         gc.fillRect(0, GameConfig.WINDOW_HEIGHT / 2.0 - GameConfig.LANE_HEIGHT / 2.0,
                 GameConfig.WINDOW_WIDTH, GameConfig.LANE_HEIGHT);
 
-        // Friendly barn
-        gc.setFill(Color.web("#795548"));
-        gc.fillRect(state.getLane().getFriendlyBarn().getX(),
-                state.getLane().getFriendlyBarn().getY(), 50, 80);
+        // Friendly barn (Player 1)
+        // If actionTimer > 0, show frame 2 (action), else show frame 1 (idle)
+        int p1Frame = state.getLane().getFriendlyBarn().getActionTimer() > 0 ? 2 : 1;
+        javafx.scene.image.Image p1Sprite = SpriteManager.getPlayerSprite(1, p1Frame);
+        if (p1Sprite != null) {
+            gc.drawImage(p1Sprite, state.getLane().getFriendlyBarn().getX() + 10,
+                    state.getLane().getFriendlyBarn().getY(), 40, 55);
+        } else {
+            gc.setFill(Color.web("#795548"));
+            gc.fillRect(state.getLane().getFriendlyBarn().getX(),
+                    state.getLane().getFriendlyBarn().getY(), 40, 55);
+        }
 
-        // Enemy barn
-        gc.setFill(Color.web("#F44336"));
-        gc.fillRect(state.getLane().getEnemyBarn().getX(),
-                state.getLane().getEnemyBarn().getY(), 50, 80);
+        // Enemy barn (Player 2)
+        int p2Frame = state.getLane().getEnemyBarn().getActionTimer() > 0 ? 2 : 1;
+        javafx.scene.image.Image p2Sprite = SpriteManager.getPlayerSprite(2, p2Frame);
+        if (p2Sprite != null) {
+            gc.drawImage(p2Sprite, state.getLane().getEnemyBarn().getX(),
+                    state.getLane().getEnemyBarn().getY(), 40, 55);
+        } else {
+            gc.setFill(Color.web("#F44336"));
+            gc.fillRect(state.getLane().getEnemyBarn().getX(),
+                    state.getLane().getEnemyBarn().getY(), 40, 55);
+        }
 
         // Units
         for (Unit unit : state.getLane().getUnits()) {

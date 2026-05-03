@@ -23,6 +23,8 @@ public class InputHandler {
             state.getPlayer().setFeedBalance(state.getPlayer().getFeedBalance() - unitType.getFeedCost());
             state.getPlayer().setSpawnCooldown(GameConfig.SPAWN_COOLDOWN);
             state.getLane().getUnits().add(new Unit(unitType, 50, GameConfig.WINDOW_HEIGHT / 2.0));
+            // Trigger the player's throwing/spawning animation
+            state.getLane().getFriendlyBarn().triggerAction();
         }
     }
 }

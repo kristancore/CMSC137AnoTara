@@ -17,6 +17,10 @@ public class GameState {
             GameConfig.MAX_FEED
         ));
         player.setSpawnCooldown(Math.max(0, player.getSpawnCooldown() - delta));
+        
+        // Update the barns so their action timers count down
+        lane.getFriendlyBarn().update(delta);
+        lane.getEnemyBarn().update(delta);
 
         for (Unit unit : lane.getUnits()) {
             unit.setX(unit.getX() + unit.getType().getSpeed() * unit.getDirection() * delta);
