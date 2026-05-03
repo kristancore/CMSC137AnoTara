@@ -7,6 +7,7 @@ public class Unit {
     private double y;
     private int direction = 1;
     private double attackTimer;
+    private double animationTimer = 0;
 
     public Unit(UnitType type, double x, double y) {
         this.type = type;
@@ -32,4 +33,7 @@ public class Unit {
 
     public double getAttackTimer() { return attackTimer; }
     public void setAttackTimer(double attackTimer) { this.attackTimer = attackTimer; }
+
+    public double getAnimationTimer() { return animationTimer; }
+    public void setAnimationTimer(double animationTimer) { this.animationTimer = animationTimer; }
 }

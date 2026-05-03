@@ -20,6 +20,7 @@ public class GameState {
 
         for (Unit unit : lane.getUnits()) {
             unit.setX(unit.getX() + unit.getType().getSpeed() * unit.getDirection() * delta);
+            unit.setAnimationTimer(unit.getAnimationTimer() + delta);
         }
 
         for (Unit unit : lane.getUnits()) {

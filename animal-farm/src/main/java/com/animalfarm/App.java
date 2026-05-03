@@ -21,6 +21,7 @@ public class App extends Application {
 
     @Override
     public void start(Stage stage) {
+        com.animalfarm.view.SpriteManager.loadSprites();
         GameState state = new GameState();
 
         Canvas canvas = new Canvas(GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT);

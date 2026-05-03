@@ -2,9 +2,10 @@ package com.animalfarm.model;
 
 public enum UnitType {
     CHICKEN(50, 5, 0, 80, 5, 30, 30, "#FFD700"),
-    GOAT(100, 10, 2, 50, 10, 40, 40, "#A0A0A0"),
-    COW(200, 20, 5, 30, 20, 60, 60, "#8B4513"),
-    TURTLE(300, 8, 15, 20, 15, 50, 50, "#228B22");
+    PIG(100, 10, 2, 50, 10, 56, 40, "#FFC0CB"),
+    COW(200, 20, 5, 30, 20, 68, 60, "#8B4513"),
+    SHEEP(250, 15, 10, 25, 15, 60, 55, "#FFFFFF"),
+    LLAMA(300, 8, 15, 20, 15, 60, 90, "#C19A6B");
 
     private final double hp;
     private final double damage;

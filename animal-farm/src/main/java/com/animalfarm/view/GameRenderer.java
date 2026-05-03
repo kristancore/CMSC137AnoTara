@@ -33,11 +33,23 @@ public class GameRenderer {
 
         // Units
         for (Unit unit : state.getLane().getUnits()) {
-            gc.setFill(Color.web(unit.getType().getHexColor()));
-            gc.fillRect(unit.getX(),
-                    unit.getY() - unit.getType().getHeight() / 2.0,
-                    unit.getType().getWidth(),
-                    unit.getType().getHeight());
+            int frameIndex = ((int)(unit.getAnimationTimer() * 8) % 4) + 1;
+            javafx.scene.image.Image sprite = SpriteManager.getSprite(unit.getType(), unit.getDirection(), frameIndex);
+            
+            if (sprite != null) {
+                // We draw the sprite covering the logical bounding box
+                gc.drawImage(sprite,
+                        unit.getX(),
+                        unit.getY() - unit.getType().getHeight() / 2.0,
+                        unit.getType().getWidth(),
+                        unit.getType().getHeight());
+            } else {
+                gc.setFill(Color.web(unit.getType().getHexColor()));
+                gc.fillRect(unit.getX(),
+                        unit.getY() - unit.getType().getHeight() / 2.0,
+                        unit.getType().getWidth(),
+                        unit.getType().getHeight());
+            }
         }
     }
 }

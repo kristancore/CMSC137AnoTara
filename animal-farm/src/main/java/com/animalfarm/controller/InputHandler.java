@@ -10,9 +10,10 @@ public class InputHandler {
     public void handleSpawnRequest(KeyCode key, GameState state) {
         UnitType unitType = switch (key) {
             case DIGIT1 -> UnitType.CHICKEN;
-            case DIGIT2 -> UnitType.GOAT;
+            case DIGIT2 -> UnitType.PIG;
             case DIGIT3 -> UnitType.COW;
-            case DIGIT4 -> UnitType.TURTLE;
+            case DIGIT4 -> UnitType.SHEEP;
+            case DIGIT5 -> UnitType.LLAMA;
             default -> null;
         };
         if (unitType == null) return;
