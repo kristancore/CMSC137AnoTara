@@ -53,6 +53,13 @@ public class SpriteManager {
                 }
             }
         }
+        // load the bg pic
+        try {
+            Image bg = new Image(SpriteManager.class.getResourceAsStream("/ui/background.png"));
+            imageCache.put("background", bg);
+        } catch (Exception e) {
+            System.err.println("Failed to load background sprite: /ui/background.png");
+        }
     }
 
     public static Image getSprite(UnitType type, int direction, int frame) {
@@ -63,6 +70,10 @@ public class SpriteManager {
 
     public static Image getPlayerSprite(int playerNum, int frame) {
         return playerCache.get("player" + playerNum + "_" + frame);
+    }
+
+    public static Image getBackgroundImage() {
+        return imageCache.get("background");
     }
 
     private static String getCacheKey(String animalName, String direction, int frame) {

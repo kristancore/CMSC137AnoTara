@@ -16,10 +16,14 @@ public class GameRenderer {
     public void draw(GameState state) {
         gc.clearRect(0, 0, GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT);
 
-        // Lane background
-        gc.setFill(Color.web("#8BC34A"));
-        gc.fillRect(0, GameConfig.WINDOW_HEIGHT / 2.0 - GameConfig.LANE_HEIGHT / 2.0,
-                GameConfig.WINDOW_WIDTH, GameConfig.LANE_HEIGHT);
+        // put the bg pic here
+        javafx.scene.image.Image bgImage = SpriteManager.getBackgroundImage();
+        if (bgImage != null) {
+            gc.drawImage(bgImage, 0, 0, GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT);
+        } else {
+            gc.setFill(Color.web("#8BC34A"));
+            gc.fillRect(0, 0, GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT);
+        }
 
         // Friendly barn (Player 1)
         // If actionTimer > 0, show frame 2 (action), else show frame 1 (idle)

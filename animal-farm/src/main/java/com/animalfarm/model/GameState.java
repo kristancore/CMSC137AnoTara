@@ -5,6 +5,7 @@ public class GameState {
     private Player player;
     private boolean isGameOver = false;
     private boolean isVictory = false;
+    private int selectedRow = 0;
 
     public GameState() {
         this.lane = new Lane();
@@ -47,4 +48,6 @@ public class GameState {
     public void setGameOver(boolean isGameOver) { this.isGameOver = isGameOver; }
     public boolean isVictory() { return isVictory; }
     public void setVictory(boolean isVictory) { this.isVictory = isVictory; }
+    public int getSelectedRow() { return selectedRow; }
+    public void setSelectedRow(int selectedRow) { this.selectedRow = selectedRow; }
 }

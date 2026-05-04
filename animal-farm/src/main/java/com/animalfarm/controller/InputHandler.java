@@ -7,7 +7,21 @@ import com.animalfarm.model.UnitType;
 import javafx.scene.input.KeyCode;
 
 public class InputHandler {
-    public void handleSpawnRequest(KeyCode key, GameState state) {
+    public void handleInput(KeyCode key, GameState state) {
+        if (key == KeyCode.UP) {
+            if (state.getSelectedRow() > 0) {
+                state.setSelectedRow(state.getSelectedRow() - 1);
+                state.getLane().getFriendlyBarn().setY(state.getSelectedRow() * 90 + 17.5);
+            }
+            return;
+        } else if (key == KeyCode.DOWN) {
+            if (state.getSelectedRow() < 5) {
+                state.setSelectedRow(state.getSelectedRow() + 1);
+                state.getLane().getFriendlyBarn().setY(state.getSelectedRow() * 90 + 17.5);
+            }
+            return;
+        }
+
         UnitType unitType = switch (key) {
             case DIGIT1 -> UnitType.CHICKEN;
             case DIGIT2 -> UnitType.PIG;
@@ -22,7 +36,8 @@ public class InputHandler {
                 && state.getPlayer().getSpawnCooldown() <= 0) {
             state.getPlayer().setFeedBalance(state.getPlayer().getFeedBalance() - unitType.getFeedCost());
             state.getPlayer().setSpawnCooldown(GameConfig.SPAWN_COOLDOWN);
-            state.getLane().getUnits().add(new Unit(unitType, 50, GameConfig.WINDOW_HEIGHT / 2.0));
+            double spawnY = state.getSelectedRow() * 90 + 45;
+            state.getLane().getUnits().add(new Unit(unitType, 50, spawnY));
             // Trigger the player's throwing/spawning animation
             state.getLane().getFriendlyBarn().triggerAction();
         }

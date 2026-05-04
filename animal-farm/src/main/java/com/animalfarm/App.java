@@ -79,7 +79,7 @@ public class App extends Application {
         gameLoop = new GameLoop(state, renderer, hudRenderer);
 
         gameScene = new Scene(root, GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT);
-        gameScene.setOnKeyPressed(e -> inputHandler.handleSpawnRequest(e.getCode(), state));
+        gameScene.setOnKeyPressed(e -> inputHandler.handleInput(e.getCode(), state));
         
         root.setOnMouseClicked(e -> root.requestFocus());
         root.requestFocus();

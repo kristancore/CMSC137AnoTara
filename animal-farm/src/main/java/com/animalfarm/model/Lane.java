@@ -10,9 +10,10 @@ public class Lane {
 
     public Lane() {
         this.units = new ArrayList<>();
-        double barnY = GameConfig.WINDOW_HEIGHT / 2.0 - GameConfig.LANE_HEIGHT / 2.0;
-        this.friendlyBarn = new Barn(0, barnY);
-        this.enemyBarn = new Barn(GameConfig.WINDOW_WIDTH - 50, barnY);
+        // player starts at top row
+        this.friendlyBarn = new Barn(0, 17.5);
+        // put enemy base in middle
+        this.enemyBarn = new Barn(GameConfig.WINDOW_WIDTH - 50, 242.5);
     }
 
     public List<Unit> getUnits() { return units; }
