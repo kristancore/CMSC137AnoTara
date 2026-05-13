@@ -9,12 +9,14 @@ public class GameLoop extends AnimationTimer {
     private final GameState state;
     private final GameRenderer renderer;
     private final HUDRenderer hud;
+    private final Runnable onGameOver;
     private long lastTime = -1;
 
-    public GameLoop(GameState state, GameRenderer renderer, HUDRenderer hud) {
-        this.state = state;
-        this.renderer = renderer;
-        this.hud = hud;
+    public GameLoop(GameState state, GameRenderer renderer, HUDRenderer hud, Runnable onGameOver) {
+        this.state      = state;
+        this.renderer   = renderer;
+        this.hud        = hud;
+        this.onGameOver = onGameOver;
     }
 
     @Override
@@ -33,6 +35,7 @@ public class GameLoop extends AnimationTimer {
 
         if (state.isGameOver()) {
             this.stop();
+            if (onGameOver != null) onGameOver.run();
         }
     }
 }

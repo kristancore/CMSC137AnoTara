@@ -1,6 +1,7 @@
 package com.animalfarm.model;
 
 public enum UnitType {
+    // hp, damage, armor, speed, feedCost, width, height, hexColor
     CHICKEN(50, 5, 0, 80, 5, 30, 30, "#FFD700"),
     PIG(100, 10, 2, 50, 10, 56, 40, "#FFC0CB"),
     COW(200, 20, 5, 30, 20, 68, 60, "#8B4513"),

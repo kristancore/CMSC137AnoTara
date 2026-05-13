@@ -64,6 +64,7 @@ public class SpriteManager {
 
     public static Image getSprite(UnitType type, int direction, int frame) {
         String animalName = type.name().toLowerCase();
+        // Swapped mapping as requested: P1 (1) now uses "left" assets, P2 (-1) uses "right"
         String dirString = direction == 1 ? "left" : "right";
         return imageCache.get(getCacheKey(animalName, dirString, frame));
     }
