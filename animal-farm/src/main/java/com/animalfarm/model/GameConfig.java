@@ -5,7 +5,7 @@ public final class GameConfig {
     private GameConfig() {}
 
     // Deploy cooldown (seconds between each deployment)
-    public static final double SPAWN_COOLDOWN  = 1.0;
+    public static final double SPAWN_COOLDOWN  = 2.0;
 
     // Combat / Base
     public static final double MELEE_RANGE      = 20;

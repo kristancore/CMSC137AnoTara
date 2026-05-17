@@ -11,7 +11,7 @@ public class InputHandler {
     public void handleInput(KeyCode key, GameState state) {
         if (state.isGameOver()) return;
 
-        double cooldown = state.isSuddenDeath() ? 0.5 : GameConfig.SPAWN_COOLDOWN;
+        double cooldown = state.isSuddenDeath() ? 1.0 : GameConfig.SPAWN_COOLDOWN;
 
         // --- Player 1 (Arrows + SPACE) ---
         if (key == KeyCode.UP) {
