@@ -24,4 +24,10 @@ public class Lane {
 
     public Barn getEnemyBarn() { return enemyBarn; }
     public void setEnemyBarn(Barn b) { this.enemyBarn = b; }
+
+    /** Team-indexed access: teamId 1 = friendly (left), teamId 2 = enemy (right). */
+    public Barn getBarn(int teamId) { return teamId == 1 ? friendlyBarn : enemyBarn; }
+    public void setBarn(int teamId, Barn b) {
+        if (teamId == 1) friendlyBarn = b; else enemyBarn = b;
+    }
 }

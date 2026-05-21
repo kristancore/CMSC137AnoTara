@@ -8,6 +8,7 @@ public class Unit {
     private int direction = 1;
     private double attackTimer;
     private double animationTimer = 0;
+    private int playerId = 1;
 
     public Unit(UnitType type, double x, double y) {
         this.type = type;
@@ -36,4 +37,10 @@ public class Unit {
 
     public double getAnimationTimer() { return animationTimer; }
     public void setAnimationTimer(double animationTimer) { this.animationTimer = animationTimer; }
+
+    public int getPlayerId() { return playerId; }
+    public void setPlayerId(int playerId) { this.playerId = playerId; }
+
+    /** Team 1 moves right (direction=1), Team 2 moves left (direction=-1). */
+    public int getTeamId() { return direction == 1 ? 1 : 2; }
 }

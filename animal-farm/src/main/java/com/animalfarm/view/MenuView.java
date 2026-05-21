@@ -19,11 +19,18 @@ public class MenuView {
     private String fontFam = "'Courier New', monospace";
 
     private final Runnable onStartGame;
+    private final Runnable onPlayOnline;
     private final java.util.function.Consumer<Scene> onSetScene;
 
+    /** Legacy constructor — no online button. */
     public MenuView(Runnable onStartGame, java.util.function.Consumer<Scene> onSetScene) {
-        this.onStartGame = onStartGame;
-        this.onSetScene = onSetScene;
+        this(onStartGame, null, onSetScene);
+    }
+
+    public MenuView(Runnable onStartGame, Runnable onPlayOnline, java.util.function.Consumer<Scene> onSetScene) {
+        this.onStartGame  = onStartGame;
+        this.onPlayOnline = onPlayOnline;
+        this.onSetScene   = onSetScene;
 
         loadFont();
         createEmptyScene();
@@ -220,12 +227,17 @@ public class MenuView {
         buttonBox.setPadding(new Insets(0, 0, 40, 0));
 
         Button creditsBtn = createMenuButton("CREDITS");
-        Button startBtn = createMenuButton("START");
-        Button rulesBtn = createMenuButton("RULES");
+        Button startBtn   = createMenuButton("LOCAL");
+        Button onlineBtn  = createMenuButton("ONLINE");
+        Button rulesBtn   = createMenuButton("RULES");
 
         startBtn.setOnAction(e -> {
             if (onStartGame != null)
                 onStartGame.run();
+        });
+        onlineBtn.setOnAction(e -> {
+            if (onPlayOnline != null)
+                onPlayOnline.run();
         });
         creditsBtn.setOnAction(e -> {
             if (onSetScene != null)
@@ -237,7 +249,7 @@ public class MenuView {
                 onSetScene.accept(emptyScene);
         });
 
-        buttonBox.getChildren().addAll(creditsBtn, startBtn, rulesBtn);
+        buttonBox.getChildren().addAll(creditsBtn, startBtn, onlineBtn, rulesBtn);
         StackPane.setAlignment(buttonBox, Pos.BOTTOM_CENTER);
 
         root.getChildren().addAll(titleBox, buttonBox);
