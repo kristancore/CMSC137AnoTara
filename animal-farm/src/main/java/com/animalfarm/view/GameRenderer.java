@@ -10,10 +10,6 @@ import javafx.scene.transform.Affine;
 public class GameRenderer {
     private final GraphicsContext gc;
     private final int myTeamId; // 1 = normal view, 2 = horizontally mirrored view
-    // #region debug
-    private volatile boolean avatarLogged = false;
-    // #endregion
-
     public GameRenderer(GraphicsContext gc) {
         this(gc, 1);
     }
@@ -87,19 +83,6 @@ public class GameRenderer {
             double ey1 = GameConfig.laneY(state.getSelectedRowP3()) - 27.5;
             double ey2 = GameConfig.laneY(state.getSelectedRowP4()) - 27.5;
 
-            // #region debug
-            if (!avatarLogged) {
-                avatarLogged = true;
-                debugLog("avatar Ys post-fix",
-                    "myTeam=" + myTeamId
-                    + " p1Y=" + (int)by1 + " p2Y=" + (int)by2
-                    + " p3Y=" + (int)ey1 + " p4Y=" + (int)ey2
-                    + " r1=" + state.getSelectedRowP1() + " r2=" + state.getSelectedRowP2()
-                    + " r3=" + state.getSelectedRowP3() + " r4=" + state.getSelectedRowP4(),
-                    "H1,H2,H3");
-            }
-            // #endregion
-
             if (p1Sprite != null) gc.drawImage(p1Sprite, friendlyX + 8, by1, 44, 60);
             else { gc.setFill(Color.web("#795548")); gc.fillRect(friendlyX, by1, 44, 60); }
 
@@ -143,16 +126,4 @@ public class GameRenderer {
         if (flip) gc.restore();
     }
 
-    // #region debug
-    private static void debugLog(String msg, String data, String hyp) {
-        try {
-            java.net.URL url = new java.net.URL("http://localhost:8787/log");
-            java.net.HttpURLConnection c = (java.net.HttpURLConnection) url.openConnection();
-            c.setRequestMethod("POST"); c.setDoOutput(true); c.setConnectTimeout(300); c.setReadTimeout(300);
-            String body = "{\"sessionId\":\"p2-p4-avatar-invisible-b89d6d\",\"msg\":\"" + msg + "\",\"data\":\"" + data.replace("\"","'") + "\",\"hypothesisId\":\"" + hyp + "\"}";
-            c.getOutputStream().write(body.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            c.getInputStream().close();
-        } catch (Exception ignored) {}
-    }
-    // #endregion
 }

@@ -16,13 +16,15 @@ public class ClientHandler implements Runnable {
     private final Socket socket;
     private final BlockingQueue<Command> inbound;
     private final PrintWriter out;
+    private final Runnable onDisconnect;
     private volatile boolean running = true;
 
-    public ClientHandler(int playerId, Socket socket, BlockingQueue<Command> inbound) throws IOException {
-        this.playerId = playerId;
-        this.socket   = socket;
-        this.inbound  = inbound;
-        this.out      = new PrintWriter(new BufferedWriter(new OutputStreamWriter(socket.getOutputStream())), true);
+    public ClientHandler(int playerId, Socket socket, BlockingQueue<Command> inbound, Runnable onDisconnect) throws IOException {
+        this.playerId     = playerId;
+        this.socket       = socket;
+        this.inbound      = inbound;
+        this.out          = new PrintWriter(new BufferedWriter(new OutputStreamWriter(socket.getOutputStream())), true);
+        this.onDisconnect = onDisconnect;
     }
 
     /** Send a line to this client. Thread-safe. */
@@ -39,11 +41,12 @@ public class ClientHandler implements Runnable {
                     inbound.offer(new Command(playerId, line.trim()));
                 }
             }
-        } catch (IOException ignored) {
-            // client disconnected
+        } catch (IOException e) {
+            // socket closed externally — normal disconnect path
         } finally {
             running = false;
             close();
+            if (onDisconnect != null) onDisconnect.run();
         }
     }
 
