@@ -5,16 +5,29 @@ import com.animalfarm.model.GameState;
 import com.animalfarm.model.Unit;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
+import javafx.scene.transform.Affine;
 
 public class GameRenderer {
     private final GraphicsContext gc;
+    private final int myTeamId; // 1 = normal view, 2 = horizontally mirrored view
 
     public GameRenderer(GraphicsContext gc) {
-        this.gc = gc;
+        this(gc, 1);
+    }
+
+    public GameRenderer(GraphicsContext gc, int myTeamId) {
+        this.gc       = gc;
+        this.myTeamId = myTeamId;
     }
 
     public void draw(GameState state) {
         gc.clearRect(0, 0, GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT);
+
+        boolean flip = myTeamId == 2;
+        if (flip) {
+            gc.save();
+            gc.transform(new Affine(-1, 0, GameConfig.WINDOW_WIDTH, 0, 1, 0));
+        }
 
         // Background
         javafx.scene.image.Image bgImage = SpriteManager.getBackgroundImage();
@@ -85,5 +98,7 @@ public class GameRenderer {
                 gc.fillRect(ux, uy, w, h);
             }
         }
+
+        if (flip) gc.restore();
     }
 }

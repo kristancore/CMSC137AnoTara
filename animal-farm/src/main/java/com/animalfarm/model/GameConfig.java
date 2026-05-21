@@ -5,7 +5,13 @@ public final class GameConfig {
     private GameConfig() {}
 
     // Deploy cooldown (seconds between each deployment)
-    public static final double SPAWN_COOLDOWN  = 2.0;
+    public static final double SPAWN_COOLDOWN    = 2.0;
+    public static final double SPAWN_COOLDOWN_4P = 4.0; // doubled to reduce lane crowding in 4P
+
+    // Networking
+    public static final int SERVER_PORT        = 9137;
+    public static final int DISCOVERY_PORT     = 9138;
+    public static final int LOBBY_CODE_LENGTH  = 6;
 
     // Combat / Base
     public static final double MELEE_RANGE      = 20;
