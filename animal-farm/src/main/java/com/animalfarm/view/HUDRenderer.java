@@ -44,8 +44,36 @@ public class HUDRenderer {
         this.timerLabel = timerLabel;
     }
 
+    /** Local 2P: always P1 on left, P2 on right. */
     public void draw(GameState state) {
-        // Timer / Sudden Death
+        drawTimer(state);
+        updatePlayerHUD(state.getPlayer1(), state.getScoreP1(), state.peekNextP1(),
+                p1CooldownLabel, p1ScoreLabel, p1NextAnimalView, p1NextAnimalName, p1NextCostLabel, "SPACE", 1);
+        updatePlayerHUD(state.getPlayer2(), state.getScoreP2(), state.peekNextP2(),
+                p2CooldownLabel, p2ScoreLabel, p2NextAnimalView, p2NextAnimalName, p2NextCostLabel, "A", -1);
+    }
+
+    /**
+     * Online mode: local player on left panel, other player (teammate or enemy) on right.
+     * Both players deploy with SPACE.
+     */
+    public void draw(GameState state, int localPid, int otherPid) {
+        drawTimer(state);
+        com.animalfarm.model.Player local = state.getPlayer(localPid);
+        com.animalfarm.model.Player other = state.getPlayer(otherPid);
+        int localTeam = (localPid == 1 || (state.getMode() == GameState.GameMode.ONLINE_4P && localPid <= 2)) ? 1 : 2;
+        int otherTeam = (otherPid == 1 || (state.getMode() == GameState.GameMode.ONLINE_4P && otherPid <= 2)) ? 1 : 2;
+        if (local != null)
+            updatePlayerHUD(local, state.getScore(localPid), state.peekNext(localPid),
+                    p1CooldownLabel, p1ScoreLabel, p1NextAnimalView, p1NextAnimalName, p1NextCostLabel,
+                    "SPACE", localTeam == 1 ? 1 : -1);
+        if (other != null)
+            updatePlayerHUD(other, state.getScore(otherPid), state.peekNext(otherPid),
+                    p2CooldownLabel, p2ScoreLabel, p2NextAnimalView, p2NextAnimalName, p2NextCostLabel,
+                    "SPACE", otherTeam == 1 ? 1 : -1);
+    }
+
+    private void drawTimer(GameState state) {
         if (state.isSuddenDeath()) {
             timerLabel.setText("SUDDEN DEATH");
             timerLabel.setStyle(timerLabel.getStyle()
@@ -62,14 +90,6 @@ public class HUDRenderer {
                 timerLabel.setStyle(timerLabel.getStyle().replaceAll("-fx-text-fill: [^;]+;", "-fx-text-fill: white;"));
             }
         }
-
-        // P1 (Facing Right = 1)
-        updatePlayerHUD(state.getPlayer1(), state.getScoreP1(), state.peekNextP1(),
-                p1CooldownLabel, p1ScoreLabel, p1NextAnimalView, p1NextAnimalName, p1NextCostLabel, "SPACE", 1);
-
-        // P2 (Facing Left = -1)
-        updatePlayerHUD(state.getPlayer2(), state.getScoreP2(), state.peekNextP2(),
-                p2CooldownLabel, p2ScoreLabel, p2NextAnimalView, p2NextAnimalName, p2NextCostLabel, "A", -1);
     }
 
     private void updatePlayerHUD(com.animalfarm.model.Player player, int score, UnitType next,

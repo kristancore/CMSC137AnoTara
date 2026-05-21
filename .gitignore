@@ -34,3 +34,5 @@ bin/
 poc/*.class
 
 docs/
+
+.debug/

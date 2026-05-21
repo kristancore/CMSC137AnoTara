@@ -16,18 +16,27 @@ public class MenuView {
     private Scene emptyScene;
     private Scene creditsScene1;
     private Scene creditsScene2;
+    private Scene[] rulesScenes = new Scene[8];
     private String fontFam = "'Courier New', monospace";
 
     private final Runnable onStartGame;
+    private final Runnable onPlayOnline;
     private final java.util.function.Consumer<Scene> onSetScene;
 
+    /** Legacy constructor — no online button. */
     public MenuView(Runnable onStartGame, java.util.function.Consumer<Scene> onSetScene) {
-        this.onStartGame = onStartGame;
-        this.onSetScene = onSetScene;
+        this(onStartGame, null, onSetScene);
+    }
+
+    public MenuView(Runnable onStartGame, Runnable onPlayOnline, java.util.function.Consumer<Scene> onSetScene) {
+        this.onStartGame  = onStartGame;
+        this.onPlayOnline = onPlayOnline;
+        this.onSetScene   = onSetScene;
 
         loadFont();
         createEmptyScene();
         createCreditsScenes();
+        createRulesScenes();
         createMainMenuScene();
     }
 
@@ -108,6 +117,10 @@ public class MenuView {
     }
 
     private void setupBackground(StackPane root, boolean showGrass) {
+        setupBackground(root, showGrass, showGrass);
+    }
+
+    private void setupBackground(StackPane root, boolean showGrass, boolean showClouds) {
         try {
             java.io.InputStream is = getClass().getResourceAsStream("/ui/background.png");
             if (is != null) {
@@ -130,55 +143,54 @@ public class MenuView {
         addGlitters(animPane);
 
         if (showGrass) {
-            try {
-                java.io.InputStream is1 = getClass().getResourceAsStream("/ui/clouds.gif");
-                java.io.InputStream is2 = getClass().getResourceAsStream("/ui/clouds.gif");
-                if (is1 != null && is2 != null) {
-                    Image cloudsImg1 = new Image(is1);
-                    Image cloudsImg2 = new Image(is2);
+            if (showClouds) {
+                try {
+                    java.io.InputStream is1 = getClass().getResourceAsStream("/ui/clouds.gif");
+                    java.io.InputStream is2 = getClass().getResourceAsStream("/ui/clouds.gif");
+                    if (is1 != null && is2 != null) {
+                        Image cloudsImg1 = new Image(is1);
+                        Image cloudsImg2 = new Image(is2);
 
-                    ImageView cloudsView1 = new ImageView(cloudsImg1);
-                    ImageView cloudsView2 = new ImageView(cloudsImg2);
+                        ImageView cloudsView1 = new ImageView(cloudsImg1);
+                        ImageView cloudsView2 = new ImageView(cloudsImg2);
 
-                    // Keep original size — preserve ratio, fit to full window width
-                    double cloudW = GameConfig.WINDOW_WIDTH;
-                    for (ImageView cv : new ImageView[] { cloudsView1, cloudsView2 }) {
-                        cv.setPreserveRatio(true);
-                        cv.fitWidthProperty().bind(root.widthProperty());
-                    }
-
-                    // Place the two copies side by side
-                    cloudsView1.setTranslateX(0);
-                    cloudsView2.setTranslateX(cloudW);
-
-                    StackPane.setAlignment(cloudsView1, Pos.TOP_LEFT);
-                    StackPane.setAlignment(cloudsView2, Pos.TOP_LEFT);
-                    root.getChildren().addAll(cloudsView1, cloudsView2);
-
-                    // Slow pan: scroll leftward at 20px/sec
-                    double[] offset = { 0 };
-                    double speed = 0.50; // pixels per second - lower = slower
-                    long[] lastTime = { -1 };
-
-                    javafx.animation.AnimationTimer cloudTimer = new javafx.animation.AnimationTimer() {
-                        @Override
-                        public void handle(long now) {
-                            if (lastTime[0] < 0) {
-                                lastTime[0] = now;
-                                return;
-                            }
-                            double delta = (now - lastTime[0]) / 1_000_000_000.0;
-                            lastTime[0] = now;
-                            offset[0] -= speed * delta;
-                            if (offset[0] <= -cloudW)
-                                offset[0] += cloudW;
-                            cloudsView1.setTranslateX(offset[0]);
-                            cloudsView2.setTranslateX(offset[0] + cloudW);
+                        double cloudW = GameConfig.WINDOW_WIDTH;
+                        for (ImageView cv : new ImageView[] { cloudsView1, cloudsView2 }) {
+                            cv.setPreserveRatio(true);
+                            cv.fitWidthProperty().bind(root.widthProperty());
                         }
-                    };
-                    cloudTimer.start();
+
+                        cloudsView1.setTranslateX(0);
+                        cloudsView2.setTranslateX(cloudW);
+
+                        StackPane.setAlignment(cloudsView1, Pos.TOP_LEFT);
+                        StackPane.setAlignment(cloudsView2, Pos.TOP_LEFT);
+                        root.getChildren().addAll(cloudsView1, cloudsView2);
+
+                        double[] offset = { 0 };
+                        double speed = 0.50;
+                        long[] lastTime = { -1 };
+
+                        javafx.animation.AnimationTimer cloudTimer = new javafx.animation.AnimationTimer() {
+                            @Override
+                            public void handle(long now) {
+                                if (lastTime[0] < 0) {
+                                    lastTime[0] = now;
+                                    return;
+                                }
+                                double delta = (now - lastTime[0]) / 1_000_000_000.0;
+                                lastTime[0] = now;
+                                offset[0] -= speed * delta;
+                                if (offset[0] <= -cloudW)
+                                    offset[0] += cloudW;
+                                cloudsView1.setTranslateX(offset[0]);
+                                cloudsView2.setTranslateX(offset[0] + cloudW);
+                            }
+                        };
+                        cloudTimer.start();
+                    }
+                } catch (Exception e) {
                 }
-            } catch (Exception e) {
             }
 
             ImageView grasslandView = null;
@@ -258,23 +270,25 @@ public class MenuView {
         buttonBox.setAlignment(Pos.BOTTOM_CENTER);
         buttonBox.setPadding(new Insets(0, 0, 60, 0));
 
-        Button startBtn = createImageButton("/ui/menu-start.png", "/ui/menu-start-selected.png", () -> {
+        Button creditsBtn = createMenuButton("CREDITS");
+        Button startBtn = createMenuButton("START");
+        Button rulesBtn = createMenuButton("RULES");
+
+        startBtn.setOnAction(e -> {
             if (onStartGame != null)
                 onStartGame.run();
         });
-
-        Button rulesBtn = createImageButton("/ui/menu-tutorial.png", "/ui/menu-tutorial-selected.png", () -> {
-            updateEmptySceneTitle("RULES");
-            if (onSetScene != null)
-                onSetScene.accept(emptyScene);
-        });
-
-        Button creditsBtn = createImageButton("/ui/menu-credits.png", "/ui/menu-credits-selected.png", () -> {
+        creditsBtn.setOnAction(e -> {
             if (onSetScene != null)
                 onSetScene.accept(creditsScene1);
         });
+        rulesBtn.setOnAction(e -> {
+            updateEmptySceneTitle("RULES");
+            if (onSetScene != null)
+                onSetScene.accept(rulesScenes[0]);
+        });
 
-        buttonBox.getChildren().addAll(startBtn, rulesBtn, creditsBtn);
+        buttonBox.getChildren().addAll(creditsBtn, startBtn, rulesBtn);
         StackPane.setAlignment(buttonBox, Pos.BOTTOM_CENTER);
 
         root.getChildren().addAll(titleView, buttonBox);
@@ -283,14 +297,21 @@ public class MenuView {
     }
 
     private void createCreditsScenes() {
-        String lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum";
+        String page1Text =
+            "Sa Kabukiran is inspired by Khan Kluay (2006), Thailand's first 3D computer-animated film.\n\n" +
+            "This game was created as a final project for CMSC 137 — Data Communications and Networking, " +
+            "Second Semester, A.Y. 2025–2026.";
 
-        creditsScene1 = createPagedScene("credits", "PART 1 " + lorem.toUpperCase(), null, null, "NEXT", () -> {
+        String page2Text =
+            "Developed by Jeoff Nathaniel M. Conde, John Michael Magpantay, and Kristan Louie Escarilla.\n\n" +
+            "Built using Java 21 and JavaFX 21 (OpenJFX).";
+
+        creditsScene1 = createPagedScene("credits", page1Text, null, null, "NEXT", () -> {
             if (onSetScene != null)
                 onSetScene.accept(creditsScene2);
         });
 
-        creditsScene2 = createPagedScene("credits", "PART 2 " + lorem.toUpperCase(), "PREVIOUS", () -> {
+        creditsScene2 = createPagedScene("credits", page2Text, "PREVIOUS", () -> {
             if (onSetScene != null)
                 onSetScene.accept(creditsScene1);
         }, null, null);
@@ -299,11 +320,11 @@ public class MenuView {
     private Scene createPagedScene(String titleText, String contentText, String leftBtnText, Runnable leftBtnAction,
             String rightBtnText, Runnable rightBtnAction) {
         StackPane root = new StackPane();
-        setupMenuBackground(root);
+        setupBackground(root, true);
 
         VBox contentBox = new VBox(40);
         contentBox.setAlignment(Pos.TOP_CENTER);
-        contentBox.setPadding(new Insets(60, 50, 0, 50));
+        contentBox.setPadding(new Insets(120, 50, 0, 50));
 
         Label title = new Label(titleText.toLowerCase());
         title.setStyle("-fx-font-family: " + fontFam + "; -fx-font-size: 50px; -fx-text-fill: white;");
@@ -319,7 +340,7 @@ public class MenuView {
                 "-fx-font-family: " + fontFam + "; -fx-font-size: 14px; -fx-text-fill: white; -fx-line-spacing: 8px;");
         content.setWrapText(true);
         content.setTextAlignment(javafx.scene.text.TextAlignment.JUSTIFY);
-        content.setMaxWidth(550);
+        content.setMaxWidth(780);
         content.setEffect(shadow);
 
         contentBox.getChildren().addAll(title, content);
@@ -403,6 +424,163 @@ public class MenuView {
             ft.play();
             root.getChildren().add(glitter);
         }
+    }
+
+    private void createRulesScenes() {
+        String p1 =
+            "SA KABUKIRAN (4-PLAYER)\n\n" +
+            "OBJECTIVE\n" +
+            "Score the most points before the 100-second timer runs out. " +
+            "Earn 1 point every time your animal successfully crosses into an opponent's barn.\n\n" +
+            "CONTROLS (ALL PLAYERS)\n" +
+            "↑ / ↓ — Switch Lanes\n" +
+            "SPACE — Deploy Animal";
+
+        String p2 =
+            "Fast and cheap — your most nimble unit.\n" +
+            "Low HP and no armor, but its speed lets it slip past battles quickly.\n" +
+            "Best used to sneak a point when lanes are open.\n\n" +
+            "HP: 50  |  Speed: 80  |  Armor: 0  |  Damage: 5";
+
+        String p3 =
+            "A balanced all-rounder with decent HP and a solid punch.\n" +
+            "Moves at a moderate pace — reliable for general pushing.\n\n" +
+            "HP: 100  |  Speed: 50  |  Armor: 2  |  Damage: 10";
+
+        String p4 =
+            "Heavy hitter with high HP and strong damage.\n" +
+            "Slow to move but dominates head-to-head fights.\n" +
+            "Best for breaking through enemy pushes.\n\n" +
+            "HP: 200  |  Speed: 30  |  Armor: 5  |  Damage: 20";
+
+        String p5 =
+            "The tankiest unit — highest HP and best armor in the game.\n" +
+            "Moves slowly but is extremely hard to stop once it gets going.\n" +
+            "Low damage, but it absorbs hits for other units behind it.\n\n" +
+            "HP: 250  |  Speed: 25  |  Armor: 10  |  Damage: 15";
+
+        String p6 =
+            "Maximum armor, making it resistant to damage — a wall on legs.\n" +
+            "Very slow and low damage, but nearly impossible to push back.\n\n" +
+            "HP: 300  |  Speed: 20  |  Armor: 15  |  Damage: 8";
+
+        String p7 =
+            "LOBBY SYSTEM\n" +
+            "The host creates a room code; joiners enter the code to connect.\n\n" +
+            "THE QUEUE\n" +
+            "You have a visible queue of 3 randomly assigned animals.\n\n" +
+            "COMBAT\n" +
+            "Animals automatically move forward. When they collide, the side with higher total HP pushes the other back.\n\n" +
+            "COOLDOWN\n" +
+            "There is a 2-second cooldown between animal deployments.";
+
+        String p8 =
+            "Triggers if scores are tied at 0 seconds.\n\n" +
+            "The deploy cooldown is slashed to 1 second.\n\n" +
+            "The first player to score 1 point wins!";
+
+        rulesScenes[0] = buildRulesPage("rules",    null,      buildRulesTextNode(p1),                                         0);
+        rulesScenes[1] = buildRulesPage("chicken",  "animals", buildRulesAnimalNode("/chicken/right_1_chicken_walk.png", p2),   1);
+        rulesScenes[2] = buildRulesPage("pig",      null,      buildRulesAnimalNode("/pig/right_1_pig_walk.png",         p3),   2);
+        rulesScenes[3] = buildRulesPage("cow",      null,      buildRulesAnimalNode("/cow/right_1_cow_walk.png",         p4),   3);
+        rulesScenes[4] = buildRulesPage("sheep",    null,      buildRulesAnimalNode("/sheep/right_1_sheep_walk.png",     p5),   4);
+        rulesScenes[5] = buildRulesPage("llama",    null,      buildRulesAnimalNode("/llama/right_1_llama_walk.png",     p6),   5);
+        rulesScenes[6] = buildRulesPage("how to play", null,   buildRulesTextNode(p7),                                         6);
+        rulesScenes[7] = buildRulesPage("sudden death", null,  buildRulesTextNode(p8),                                         7);
+    }
+
+    private Scene buildRulesPage(String titleText, String subtitle, javafx.scene.Node contentNode, int idx) {
+        StackPane root = new StackPane();
+        setupBackground(root, true, false);
+
+        VBox contentBox = new VBox(20);
+        contentBox.setAlignment(Pos.TOP_LEFT);
+        contentBox.setPadding(new Insets(100, 60, 0, 60));
+
+        javafx.scene.effect.DropShadow shadow = makeDropShadow();
+
+        Label title = new Label(titleText.toLowerCase());
+        title.setStyle("-fx-font-family: " + fontFam + "; -fx-font-size: 50px; -fx-text-fill: white;");
+        title.setEffect(shadow);
+        contentBox.getChildren().add(title);
+
+        if (subtitle != null) {
+            Label sub = new Label(subtitle.toUpperCase());
+            sub.setStyle("-fx-font-family: " + fontFam + "; -fx-font-size: 12px; -fx-text-fill: #ffee88;");
+            sub.setEffect(shadow);
+            contentBox.getChildren().add(sub);
+        }
+
+        contentBox.getChildren().add(contentNode);
+
+        StackPane buttonLayout = new StackPane();
+        buttonLayout.setPadding(new Insets(0, 50, 40, 50));
+
+        if (idx > 0) {
+            Button prevBtn = createMenuButton("PREVIOUS");
+            prevBtn.setOnAction(e -> { if (onSetScene != null) onSetScene.accept(rulesScenes[idx - 1]); });
+            StackPane.setAlignment(prevBtn, Pos.BOTTOM_LEFT);
+            buttonLayout.getChildren().add(prevBtn);
+        }
+
+        Button mainMenuBtn = createMenuButton("MAIN MENU");
+        mainMenuBtn.setOnAction(e -> { if (onSetScene != null) onSetScene.accept(mainMenuScene); });
+        StackPane.setAlignment(mainMenuBtn, Pos.BOTTOM_CENTER);
+        buttonLayout.getChildren().add(mainMenuBtn);
+
+        if (idx < rulesScenes.length - 1) {
+            Button nextBtn = createMenuButton("NEXT");
+            nextBtn.setOnAction(e -> { if (onSetScene != null) onSetScene.accept(rulesScenes[idx + 1]); });
+            StackPane.setAlignment(nextBtn, Pos.BOTTOM_RIGHT);
+            buttonLayout.getChildren().add(nextBtn);
+        }
+
+        StackPane.setAlignment(buttonLayout, Pos.BOTTOM_CENTER);
+        root.getChildren().addAll(contentBox, buttonLayout);
+
+        Scene scene = new Scene(root, GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT);
+        scene.setOnMousePressed(e -> AudioManager.getInstance().playClick());
+        return scene;
+    }
+
+    private javafx.scene.Node buildRulesTextNode(String text) {
+        Label content = new Label(text);
+        content.setStyle("-fx-font-family: " + fontFam + "; -fx-font-size: 14px; -fx-text-fill: white; -fx-line-spacing: 8px;");
+        content.setWrapText(true);
+        content.setMaxWidth(780);
+        content.setEffect(makeDropShadow());
+        return content;
+    }
+
+    private javafx.scene.Node buildRulesAnimalNode(String imagePath, String desc) {
+        ImageView iv = new ImageView();
+        try {
+            java.io.InputStream is = getClass().getResourceAsStream(imagePath);
+            if (is != null) {
+                iv.setImage(new Image(is));
+                iv.setFitHeight(150);
+                iv.setPreserveRatio(true);
+            }
+        } catch (Exception ignored) {}
+
+        Label textLbl = new Label(desc);
+        textLbl.setStyle("-fx-font-family: " + fontFam + "; -fx-font-size: 14px; -fx-text-fill: white; -fx-line-spacing: 8px;");
+        textLbl.setWrapText(true);
+        textLbl.setMaxWidth(580);
+        textLbl.setEffect(makeDropShadow());
+
+        HBox hbox = new HBox(40, iv, textLbl);
+        hbox.setAlignment(Pos.CENTER_LEFT);
+        return hbox;
+    }
+
+    private javafx.scene.effect.DropShadow makeDropShadow() {
+        javafx.scene.effect.DropShadow shadow = new javafx.scene.effect.DropShadow();
+        shadow.setColor(javafx.scene.paint.Color.web("#1c5a8a"));
+        shadow.setOffsetX(4);
+        shadow.setOffsetY(4);
+        shadow.setRadius(0);
+        return shadow;
     }
 
     private Button createMenuButton(String text) {

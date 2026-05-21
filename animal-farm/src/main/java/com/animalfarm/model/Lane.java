@@ -12,8 +12,8 @@ public class Lane {
         this.units = new ArrayList<>();
         // Player barn on the left at row 0 initially
         this.friendlyBarn = new Barn(0, GameConfig.laneY(0) - 27.5);
-        // Enemy barn on the right side, vertically centered
-        this.enemyBarn    = new Barn(GameConfig.WINDOW_WIDTH - 60, GameConfig.laneY(GameConfig.NUM_LANES / 2) - 27.5);
+        // Enemy barn on the right side, starting at row 0
+        this.enemyBarn    = new Barn(GameConfig.WINDOW_WIDTH - 60, GameConfig.laneY(0) - 27.5);
     }
 
     public List<Unit> getUnits() { return units; }
@@ -24,4 +24,10 @@ public class Lane {
 
     public Barn getEnemyBarn() { return enemyBarn; }
     public void setEnemyBarn(Barn b) { this.enemyBarn = b; }
+
+    /** Team-indexed access: teamId 1 = friendly (left), teamId 2 = enemy (right). */
+    public Barn getBarn(int teamId) { return teamId == 1 ? friendlyBarn : enemyBarn; }
+    public void setBarn(int teamId, Barn b) {
+        if (teamId == 1) friendlyBarn = b; else enemyBarn = b;
+    }
 }
