@@ -7,13 +7,15 @@ package com.animalfarm.net;
  *   SPAWN <lane>
  *   LANE_SELECT <row>
  *   CHAT <message text>
+ *   NICK <nickname>
  *   PING
  *
  * Server → Client:
  *   LOBBY_OK <playerId> <lobbyCode>
  *   PLAYER_JOINED <connectedCount> <requiredCount>
  *   CAN_START                        (all players connected; host may press Start)
- *   CHAT <playerId> <message text>
+ *   CHAT <playerId> <message text>   (playerId=0 for system events)
+ *   NICK_UPDATE <playerId> <nickname>
  *   START <mode>                     (mode = 2 or 4)
  *   STATE <json>
  *   GAME_OVER <scoreTeamA> <scoreTeamB>
@@ -27,6 +29,7 @@ public final class Protocol {
     public static final String CMD_SPAWN       = "SPAWN";
     public static final String CMD_LANE_SELECT = "LANE_SELECT";
     public static final String CMD_CHAT        = "CHAT";
+    public static final String CMD_NICK        = "NICK";
     public static final String CMD_PING        = "PING";
 
     // Server → Client
@@ -34,6 +37,7 @@ public final class Protocol {
     public static final String MSG_PLAYER_JOINED = "PLAYER_JOINED";
     public static final String MSG_CAN_START     = "CAN_START";
     public static final String MSG_CHAT          = "CHAT";
+    public static final String MSG_NICK_UPDATE   = "NICK_UPDATE";
     public static final String MSG_START         = "START";
     public static final String MSG_STATE         = "STATE";
     public static final String MSG_GAME_OVER     = "GAME_OVER";
@@ -77,6 +81,14 @@ public final class Protocol {
 
     public static String chat(int pid, String msg) {
         return MSG_CHAT + " " + pid + " " + msg;
+    }
+
+    public static String nick(String name) {
+        return CMD_NICK + " " + name;
+    }
+
+    public static String nickUpdate(int pid, String name) {
+        return MSG_NICK_UPDATE + " " + pid + " " + name;
     }
 
     public static String error(String msg) {
