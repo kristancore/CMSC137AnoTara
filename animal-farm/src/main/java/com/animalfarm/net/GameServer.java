@@ -29,6 +29,7 @@ public class GameServer {
     private final GameState state;
     private final List<ClientHandler> clients = new CopyOnWriteArrayList<>();
     private final BlockingQueue<ClientHandler.Command> inbound = new LinkedBlockingQueue<>();
+    private final Map<Integer, String> nicknames = new ConcurrentHashMap<>();
     private final Runnable onGameOver;
 
     private ServerSocket serverSocket;
@@ -87,10 +88,17 @@ public class GameServer {
             List<ClientHandler.Command> batch = new ArrayList<>();
             inbound.drainTo(batch);
             for (ClientHandler.Command cmd : batch) {
-                if (Protocol.CMD_CHAT.equals(Protocol.verb(cmd.line()))) {
+                String verb = Protocol.verb(cmd.line());
+                if (Protocol.CMD_CHAT.equals(verb)) {
                     String msg = cmd.line().length() > Protocol.CMD_CHAT.length() + 1
                             ? cmd.line().substring(Protocol.CMD_CHAT.length() + 1) : "";
                     broadcast(Protocol.chat(cmd.playerId(), msg));
+                } else if (Protocol.CMD_NICK.equals(verb)) {
+                    String name = sanitizeNick(cmd.line().length() > Protocol.CMD_NICK.length() + 1
+                            ? cmd.line().substring(Protocol.CMD_NICK.length() + 1) : "");
+                    nicknames.put(cmd.playerId(), name);
+                    broadcast(Protocol.nickUpdate(cmd.playerId(), name));
+                    broadcast(Protocol.chat(0, "** " + name + " joined the lobby"));
                 }
             }
             try { Thread.sleep(50); } catch (InterruptedException e) { break; }
@@ -102,7 +110,7 @@ public class GameServer {
             try {
                 Socket sock = serverSocket.accept();
                 int pid = clients.size() + 1;
-                ClientHandler handler = new ClientHandler(pid, sock, inbound);
+                ClientHandler handler = new ClientHandler(pid, sock, inbound, () -> onClientDisconnect(pid));
                 clients.add(handler);
                 Thread.ofVirtual().start(handler);
 
@@ -263,6 +271,14 @@ public class GameServer {
     // Helpers
     // -----------------------------------------------------------------------
 
+    private void onClientDisconnect(int pid) {
+        if (gameRunning) return; // mid-game disconnects not handled here
+        clients.removeIf(c -> c.getPlayerId() == pid);
+        String name = nicknames.remove(pid);
+        broadcast(Protocol.playerJoined(clients.size(), requiredPlayers));
+        if (name != null) broadcast(Protocol.chat(0, "** " + name + " left the lobby"));
+    }
+
     private void broadcast(String line) {
         for (ClientHandler c : clients) c.send(line);
     }
@@ -324,5 +340,11 @@ public class GameServer {
 
     private static int parseInt(String s, int fallback) {
         try { return Integer.parseInt(s); } catch (NumberFormatException e) { return fallback; }
+    }
+
+    private static String sanitizeNick(String raw) {
+        String s = raw.trim().replaceAll("\\s+", " ");
+        if (s.isEmpty()) s = "Player";
+        return s.length() > 16 ? s.substring(0, 16) : s;
     }
 }

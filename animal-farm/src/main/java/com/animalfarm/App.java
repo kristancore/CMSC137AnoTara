@@ -170,6 +170,7 @@ public class App extends Application {
             GameClient hostClient = new GameClient(
                     "127.0.0.1",
                     server.getLobbyCode(),
+                    lobbyView.getNickname(),
                     status -> Platform.runLater(() -> handleClientStatus(status)),
                     count  -> Platform.runLater(() -> { if (lobbyView != null) lobbyView.updatePlayerCount(count); }),
                     chat   -> Platform.runLater(() -> { if (lobbyView != null) lobbyView.appendChat(chat); }));
@@ -190,10 +191,11 @@ public class App extends Application {
      * Called when joiner enters only the 6-char code and clicks CONNECT.
      */
     private void joinLobby(String code) {
+        String nick = lobbyView != null ? lobbyView.getNickname() : "Player";
         LobbyDiscovery.discover(code, 5000,
             ip -> Platform.runLater(() -> {
                 GameClient client = new GameClient(
-                        ip, code,
+                        ip, code, nick,
                         status -> Platform.runLater(() -> {
                             handleClientStatus(status);
                             if (status == GameClient.Status.WAITING && lobbyView != null)

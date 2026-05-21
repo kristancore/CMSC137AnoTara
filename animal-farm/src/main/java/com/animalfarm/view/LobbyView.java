@@ -36,6 +36,9 @@ public class LobbyView {
     private final TextField chatInput = new TextField();
     private GameClient currentClient; // for sendChat()
 
+    // Nickname field — lives on the select screen, persists for the session
+    private final TextField nicknameField = new TextField();
+
     // Labels updated from outside
     private Label playerCountLabel = new Label();
     private Label joinStatusLabel;
@@ -66,6 +69,13 @@ public class LobbyView {
 
         chatInput.setPromptText("Type a message...");
         chatInput.setStyle(
+                "-fx-font-family: " + pf + "; -fx-font-size: 8px;" +
+                "-fx-background-color: #0d2208; -fx-text-fill: white;" +
+                "-fx-prompt-text-fill: #4a7744;");
+
+        nicknameField.setPromptText("Your nickname (optional)");
+        nicknameField.setMaxWidth(340);
+        nicknameField.setStyle(
                 "-fx-font-family: " + pf + "; -fx-font-size: 8px;" +
                 "-fx-background-color: #0d2208; -fx-text-fill: white;" +
                 "-fx-prompt-text-fill: #4a7744;");
@@ -115,11 +125,21 @@ public class LobbyView {
         joinBtn.setOnAction(e -> showJoinInputPanel());
         backBtn.setOnAction(e -> { if (onBack != null) onBack.run(); });
 
+        Label nickLabel = styled("Your nickname:", 7);
+        nickLabel.setStyle(nickLabel.getStyle() + " -fx-text-fill: #aaffaa;");
+
         HBox btnRow = new HBox(20, createBtn, joinBtn, backBtn);
         btnRow.setAlignment(Pos.CENTER);
 
-        panel.getChildren().addAll(title, sub, modeBox, btnRow);
+        panel.getChildren().addAll(title, sub, modeBox, nickLabel, nicknameField, btnRow);
         return panel;
+    }
+
+    /** Returns the trimmed nickname, capped at 16 chars, defaulting to "Player". */
+    public String getNickname() {
+        String s = nicknameField.getText().trim();
+        if (s.isEmpty()) return "Player";
+        return s.length() > 16 ? s.substring(0, 16) : s;
     }
 
     // -----------------------------------------------------------------------

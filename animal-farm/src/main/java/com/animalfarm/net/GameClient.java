@@ -20,26 +20,29 @@ public class GameClient {
 
     private final String host;
     private final String expectedCode;
+    private final String nickname;
     private final Consumer<Status> onStatus;
     /** Fires with "N/M" strings on player count changes. */
     private final Consumer<String> onLobbyUpdate;
-    /** Fires with "P<pid>: <message>" on chat messages from any player. */
+    /** Fires with formatted chat lines on messages from any player. */
     private final Consumer<String> onChatMessage;
 
     private volatile int myPlayerId = -1;
     private volatile GameState state;
     private volatile Status status = Status.CONNECTING;
+    private final Map<Integer, String> knownNicks = new HashMap<>();
 
     private PrintWriter out;
     private Thread ioThread;
     private volatile boolean running = false;
 
-    public GameClient(String host, String lobbyCode,
+    public GameClient(String host, String lobbyCode, String nickname,
                       Consumer<Status> onStatus,
                       Consumer<String> onLobbyUpdate,
                       Consumer<String> onChatMessage) {
         this.host           = host;
         this.expectedCode   = lobbyCode.trim().toUpperCase();
+        this.nickname       = nickname;
         this.onStatus       = onStatus;
         this.onLobbyUpdate  = onLobbyUpdate;
         this.onChatMessage  = onChatMessage;
@@ -83,24 +86,38 @@ public class GameClient {
                         return;
                     }
                     myPlayerId = parseInt(args[0], -1);
+                    if (out != null) out.println(Protocol.nick(nickname));
                     setStatus(Status.WAITING);
                 }
             }
             case Protocol.MSG_PLAYER_JOINED -> {
                 // args[0]=connected, args[1]=required
                 String countStr = (args.length >= 2) ? args[0] + "/" + args[1] : "?/?";
-                if (onLobbyUpdate != null) onLobbyUpdate.accept(countStr);
                 setStatus(Status.WAITING);
+                if (onLobbyUpdate != null) onLobbyUpdate.accept(countStr);
             }
             case Protocol.MSG_CAN_START -> setStatus(Status.CAN_START);
+            case Protocol.MSG_NICK_UPDATE -> {
+                // NICK_UPDATE <pid> <name>
+                if (args.length >= 2) {
+                    int pid = parseInt(args[0], 0);
+                    String name = line.substring(Protocol.MSG_NICK_UPDATE.length() + 1 + args[0].length() + 1);
+                    if (pid > 0) knownNicks.put(pid, name);
+                }
+            }
             case Protocol.MSG_CHAT -> {
-                // CHAT <pid> <message...>
+                // CHAT <pid> <message...>  — pid=0 means system event
                 if (args.length >= 1 && onChatMessage != null) {
                     int pid = parseInt(args[0], 0);
                     String msg = args.length >= 2
                             ? line.substring(Protocol.MSG_CHAT.length() + 1 + args[0].length() + 1)
                             : "";
-                    onChatMessage.accept("P" + pid + ": " + msg);
+                    if (pid == 0) {
+                        onChatMessage.accept(msg);
+                    } else {
+                        String name = knownNicks.getOrDefault(pid, "P" + pid);
+                        onChatMessage.accept(name + ": " + msg);
+                    }
                 }
             }
             case Protocol.MSG_START -> {
