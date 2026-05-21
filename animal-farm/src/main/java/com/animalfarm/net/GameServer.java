@@ -67,53 +67,20 @@ public class GameServer {
     }
 
     private void beaconLoop() {
-        // #region debug
-        debugLog("beaconLoop started", "lobbyCode=" + lobbyCode + " payload=ANIMALFARM " + lobbyCode, "H1");
-        // #endregion
         byte[] msg = ("ANIMALFARM " + lobbyCode).getBytes(StandardCharsets.UTF_8);
         try (DatagramSocket sock = new DatagramSocket()) {
             sock.setBroadcast(true);
             InetAddress broadcast = InetAddress.getByName("255.255.255.255");
             DatagramPacket pkt = new DatagramPacket(msg, msg.length, broadcast, GameConfig.DISCOVERY_PORT);
-            // #region debug
-            debugLog("beaconLoop socket ready", "broadcastAddr=" + broadcast + " port=" + GameConfig.DISCOVERY_PORT + " msgLen=" + msg.length, "H1,H2");
-            // #endregion
-            int beaconCount = 0;
             while (!gameRunning && !serverSocket.isClosed()) {
                 sock.send(pkt);
-                beaconCount++;
-                // #region debug
-                if (beaconCount <= 3) debugLog("beacon sent #" + beaconCount, "to=255.255.255.255:" + GameConfig.DISCOVERY_PORT, "H1");
-                // #endregion
                 Thread.sleep(1000);
             }
-            // #region debug
-            debugLog("beaconLoop exiting", "gameRunning=" + gameRunning + " serverClosed=" + serverSocket.isClosed() + " beaconsSent=" + beaconCount, "H1");
-            // #endregion
         } catch (InterruptedException ignored) {
-            // #region debug
-            debugLog("beaconLoop interrupted", "", "H1");
-            // #endregion
         } catch (Exception e) {
-            // #region debug
-            debugLog("beaconLoop EXCEPTION", e.getClass().getName() + ": " + e.getMessage(), "H1");
-            // #endregion
             if (!serverSocket.isClosed()) e.printStackTrace();
         }
     }
-
-    // #region debug
-    private static void debugLog(String msg, String data, String hyp) {
-        try {
-            java.net.URL url = new java.net.URL("http://localhost:8787/log");
-            java.net.HttpURLConnection c = (java.net.HttpURLConnection) url.openConnection();
-            c.setRequestMethod("POST"); c.setDoOutput(true); c.setConnectTimeout(300); c.setReadTimeout(300);
-            String body = "{\"sessionId\":\"udp-discovery-fail-228308\",\"msg\":\"" + msg.replace("\"","'") + "\",\"data\":\"" + data.replace("\"","'") + "\",\"hypothesisId\":\"" + hyp + "\"}";
-            c.getOutputStream().write(body.getBytes(StandardCharsets.UTF_8));
-            c.getInputStream().close();
-        } catch (Exception ignored) {}
-    }
-    // #endregion
 
     private void lobbyRelayLoop() {
         while (!gameRunning && !serverSocket.isClosed()) {
