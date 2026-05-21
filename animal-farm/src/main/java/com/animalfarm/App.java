@@ -39,6 +39,7 @@ public class App extends Application {
 
         stage.setTitle("Sa Kabukiran");
         stage.setScene(menuView.getMainMenuScene());
+        stage.setResizable(false);
         stage.show();
 
         AudioManager.getInstance().playLanding();

@@ -63,6 +63,50 @@ public class MenuView {
         label.setText(title);
     }
 
+    private void setupMenuBackground(StackPane root) {
+        try {
+            java.io.InputStream bgIs = getClass().getResourceAsStream("/ui/menu-background.png");
+            if (bgIs != null) {
+                ImageView bgView = new ImageView(new Image(bgIs));
+                bgView.setFitWidth(GameConfig.WINDOW_WIDTH);
+                bgView.setFitHeight(GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT);
+                bgView.setPreserveRatio(false);
+                root.getChildren().add(bgView);
+            }
+
+            java.io.InputStream raysIs = getClass().getResourceAsStream("/ui/menu-rays.png");
+            if (raysIs != null) {
+                ImageView raysView = new ImageView(new Image(raysIs));
+                raysView.setPreserveRatio(true);
+                // Make it significantly larger than the screen dimensions to cover everything seamlessly during rotation
+                double size = Math.max(GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT) * 1.5;
+                raysView.setFitWidth(size);
+                raysView.setFitHeight(size);
+                
+                // Slow rotation animation for premium feel
+                javafx.animation.RotateTransition rt = new javafx.animation.RotateTransition(
+                        javafx.util.Duration.seconds(40), raysView);
+                rt.setByAngle(360);
+                rt.setCycleCount(javafx.animation.Animation.INDEFINITE);
+                rt.setInterpolator(javafx.animation.Interpolator.LINEAR);
+                rt.play();
+                
+                root.getChildren().add(raysView);
+            }
+
+            java.io.InputStream fgIs = getClass().getResourceAsStream("/ui/menu-foreground.png");
+            if (fgIs != null) {
+                ImageView fgView = new ImageView(new Image(fgIs));
+                fgView.setFitWidth(GameConfig.WINDOW_WIDTH);
+                fgView.setFitHeight(GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT);
+                fgView.setPreserveRatio(false);
+                root.getChildren().add(fgView);
+            }
+        } catch (Exception e) {
+            root.setStyle("-fx-background-color: #55b4ff;");
+        }
+    }
+
     private void setupBackground(StackPane root, boolean showGrass) {
         try {
             java.io.InputStream is = getClass().getResourceAsStream("/ui/background.png");
@@ -186,61 +230,54 @@ public class MenuView {
 
     private void createMainMenuScene() {
         StackPane root = new StackPane();
-        setupBackground(root, true);
+        setupMenuBackground(root);
 
-        VBox titleBox = new VBox(15);
-        titleBox.setAlignment(Pos.CENTER);
-        titleBox.setTranslateY(-80);
-
-        Label title = new Label("Sa Kabukiran");
-        title.setStyle("-fx-font-family: " + fontFam + "; -fx-font-size: 60px; -fx-text-fill: white;");
-        javafx.scene.effect.DropShadow shadow = new javafx.scene.effect.DropShadow();
-        shadow.setColor(javafx.scene.paint.Color.web("#1c5a8a"));
-        shadow.setOffsetX(6);
-        shadow.setOffsetY(6);
-        shadow.setRadius(0);
-        title.setEffect(shadow);
-
-        Label subtitle = new Label("A Khan Kluay-Inspired Game");
-        subtitle.setStyle("-fx-font-family: " + fontFam + "; -fx-font-size: 14px; -fx-text-fill: white;");
-        subtitle.setEffect(shadow);
-
-        titleBox.getChildren().addAll(title, subtitle);
+        ImageView titleView = new ImageView();
+        try {
+            java.io.InputStream is = getClass().getResourceAsStream("/ui/menu-title.png");
+            if (is != null) {
+                titleView.setImage(new Image(is));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        titleView.setPreserveRatio(true);
+        titleView.setFitWidth(650);
+        titleView.setTranslateY(-90);
+        StackPane.setAlignment(titleView, Pos.CENTER);
 
         javafx.animation.TranslateTransition ttTitle = new javafx.animation.TranslateTransition(
-                javafx.util.Duration.seconds(1.5), titleBox);
-        ttTitle.setByY(16);
+                javafx.util.Duration.seconds(1.8), titleView);
+        ttTitle.setByY(20);
         ttTitle.setAutoReverse(true);
         ttTitle.setCycleCount(javafx.animation.Animation.INDEFINITE);
         ttTitle.setInterpolator(javafx.animation.Interpolator.EASE_BOTH);
         ttTitle.play();
 
-        HBox buttonBox = new HBox(50);
+        VBox buttonBox = new VBox(20);
         buttonBox.setAlignment(Pos.BOTTOM_CENTER);
-        buttonBox.setPadding(new Insets(0, 0, 40, 0));
+        buttonBox.setPadding(new Insets(0, 0, 60, 0));
 
-        Button creditsBtn = createMenuButton("CREDITS");
-        Button startBtn = createMenuButton("START");
-        Button rulesBtn = createMenuButton("RULES");
-
-        startBtn.setOnAction(e -> {
+        Button startBtn = createImageButton("/ui/menu-start.png", "/ui/menu-start-selected.png", () -> {
             if (onStartGame != null)
                 onStartGame.run();
         });
-        creditsBtn.setOnAction(e -> {
-            if (onSetScene != null)
-                onSetScene.accept(creditsScene1);
-        });
-        rulesBtn.setOnAction(e -> {
+
+        Button rulesBtn = createImageButton("/ui/menu-tutorial.png", "/ui/menu-tutorial-selected.png", () -> {
             updateEmptySceneTitle("RULES");
             if (onSetScene != null)
                 onSetScene.accept(emptyScene);
         });
 
-        buttonBox.getChildren().addAll(creditsBtn, startBtn, rulesBtn);
+        Button creditsBtn = createImageButton("/ui/menu-credits.png", "/ui/menu-credits-selected.png", () -> {
+            if (onSetScene != null)
+                onSetScene.accept(creditsScene1);
+        });
+
+        buttonBox.getChildren().addAll(startBtn, rulesBtn, creditsBtn);
         StackPane.setAlignment(buttonBox, Pos.BOTTOM_CENTER);
 
-        root.getChildren().addAll(titleBox, buttonBox);
+        root.getChildren().addAll(titleView, buttonBox);
         mainMenuScene = new Scene(root, GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT);
         mainMenuScene.setOnMousePressed(e -> AudioManager.getInstance().playClick());
     }
@@ -262,7 +299,7 @@ public class MenuView {
     private Scene createPagedScene(String titleText, String contentText, String leftBtnText, Runnable leftBtnAction,
             String rightBtnText, Runnable rightBtnAction) {
         StackPane root = new StackPane();
-        setupBackground(root, true);
+        setupMenuBackground(root);
 
         VBox contentBox = new VBox(40);
         contentBox.setAlignment(Pos.TOP_CENTER);
@@ -385,6 +422,49 @@ public class MenuView {
 
         // Play click SFX on every button press
         btn.setOnMousePressed(e -> AudioManager.getInstance().playClick());
+
+        return btn;
+    }
+
+    private Button createImageButton(String normalPath, String selectedPath, Runnable action) {
+        Button btn = new Button();
+        btn.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-padding: 0;");
+
+        try {
+            java.io.InputStream normalIs = getClass().getResourceAsStream(normalPath);
+            java.io.InputStream selectedIs = getClass().getResourceAsStream(selectedPath);
+
+            if (normalIs != null && selectedIs != null) {
+                Image normalImg = new Image(normalIs);
+                Image selectedImg = new Image(selectedIs);
+
+                ImageView iv = new ImageView(normalImg);
+                iv.setPreserveRatio(true);
+                iv.setFitHeight(50);
+
+                btn.setGraphic(iv);
+
+                btn.setOnMouseEntered(e -> {
+                    iv.setImage(selectedImg);
+                    iv.setScaleX(1.05);
+                    iv.setScaleY(1.05);
+                });
+
+                btn.setOnMouseExited(e -> {
+                    iv.setImage(normalImg);
+                    iv.setScaleX(1.0);
+                    iv.setScaleY(1.0);
+                });
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        btn.setOnAction(e -> {
+            if (action != null) {
+                action.run();
+            }
+        });
 
         return btn;
     }
