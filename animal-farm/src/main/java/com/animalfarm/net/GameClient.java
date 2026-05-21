@@ -147,14 +147,19 @@ public class GameClient {
             }
 
             double[] rows = readDoubleArray(json, "\"rows\":");
+            boolean is4P = state.getMode() == com.animalfarm.model.GameState.GameMode.ONLINE_4P;
+            // In 4P, teammates share a barn — only the local player drives their team's barn,
+            // and the first enemy pid drives the enemy barn; skip all other teammates.
+            int enemyRepPid = is4P ? (myPlayerId <= 2 ? 3 : 1) : -1;
             for (int i = 0; i < rows.length; i++) {
                 int pid = i + 1;
                 if (state.getPlayer(pid) == null) continue; // skip inactive players
                 int row = (int) rows[i];
                 state.setSelectedRow(pid, row);
-                boolean is4P = state.getMode() == com.animalfarm.model.GameState.GameMode.ONLINE_4P;
                 int teamId = is4P ? (pid <= 2 ? 1 : 2) : (pid == 1 ? 1 : 2);
-                state.getLane().getBarn(teamId).setY(com.animalfarm.model.GameConfig.laneY(row) - 27.5);
+                if (!is4P || pid == myPlayerId || pid == enemyRepPid) {
+                    state.getLane().getBarn(teamId).setY(com.animalfarm.model.GameConfig.laneY(row) - 27.5);
+                }
             }
 
             applyBarns(json);
@@ -305,4 +310,5 @@ public class GameClient {
     private static int parseInt(String s, int fallback) {
         try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return fallback; }
     }
+
 }

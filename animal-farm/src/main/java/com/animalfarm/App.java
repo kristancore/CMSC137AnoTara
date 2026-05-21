@@ -241,11 +241,13 @@ public class App extends Application {
     private void setupOnlineGame(GameState state, GameClient client) {
         int myPid = client.getMyPlayerId();
         // 2P: P1=team1, P2=team2.  4P: P1+P2=team1, P3+P4=team2.
-        int myTeamId = (state.getMode() == GameState.GameMode.ONLINE_4P)
-                ? (myPid <= 2 ? 1 : 2)
-                : (myPid == 1 ? 1 : 2);
-        // Right-panel player: teammate in 4P, enemy in 2P — same formula both cases
-        int otherPid = (myPid % 2 == 1) ? myPid + 1 : myPid - 1;
+        boolean is4P = state.getMode() == GameState.GameMode.ONLINE_4P;
+        int myTeamId = is4P ? (myPid <= 2 ? 1 : 2) : (myPid == 1 ? 1 : 2);
+        // Right-panel player: in 4P show an ENEMY player so both team scores are visible;
+        // in 2P show the only enemy.
+        int otherPid = is4P
+                ? (myPid <= 2 ? myPid + 2 : myPid - 2)   // 1→3, 2→4, 3→1, 4→2
+                : (myPid == 1 ? 2 : 1);
 
         Canvas canvas = new Canvas(GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT);
         GraphicsContext gc = canvas.getGraphicsContext2D();
