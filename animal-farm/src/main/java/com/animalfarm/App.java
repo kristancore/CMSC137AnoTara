@@ -59,8 +59,7 @@ public class App extends Application {
         primaryStage.setScene(menuView.getMainMenuScene());
     }
 
-    private StackPane buildGameOverCard(String pf, int s1, int s2, boolean isSD, Runnable onReplay, Runnable onMenu,
-            Runnable onSD) {
+    private StackPane buildGameOverCard(String pf, int s1, int s2, boolean isSD, Runnable onReplay, Runnable onMenu) {
         StackPane backdrop = new StackPane();
         backdrop.setStyle("-fx-background-color: rgba(0,0,0,0.72);");
 
@@ -102,26 +101,17 @@ public class App extends Application {
         Label winnerLabel = new Label(winnerStr);
         winnerLabel.setStyle("-fx-font-family: " + pf + "; -fx-font-size: 16px; -fx-text-fill: #88ff88;");
 
-        Label winsLabel = new Label(s1 == s2 ? "ROUND DEALER REQUIRED!" : "WINS THE ROUND!");
+        Label winsLabel = new Label(isSD ? "WINS SUDDEN DEATH!" : "WINS THE ROUND!");
         winsLabel.setStyle("-fx-font-family: " + pf + "; -fx-font-size: 10px; -fx-text-fill: #ccffcc;");
 
         Label scoreLine = new Label(String.format("P1: %d  |  P2: %d", s1, s2));
         scoreLine.setStyle("-fx-font-family: " + pf + "; -fx-font-size: 12px; -fx-text-fill: white;");
 
-        Button actionBtn;
-        if (s1 == s2 && !isSD) {
-            actionBtn = buildCardButton(pf, "SUDDEN DEATH", "#ffaa00", "#331100");
-            actionBtn.setOnAction(e -> {
-                AudioManager.getInstance().playClick();
-                onSD.run();
-            });
-        } else {
-            actionBtn = buildCardButton(pf, "PLAY AGAIN", "#1a7a1a", "#aaffaa");
-            actionBtn.setOnAction(e -> {
-                AudioManager.getInstance().playClick();
-                onReplay.run();
-            });
-        }
+        Button actionBtn = buildCardButton(pf, "PLAY AGAIN", "#1a7a1a", "#aaffaa");
+        actionBtn.setOnAction(e -> {
+            AudioManager.getInstance().playClick();
+            onReplay.run();
+        });
 
         Button menuBtn = buildCardButton(pf, "MAIN MENU", "#7a1a1a", "#ffaaaa");
         menuBtn.setOnAction(e -> {
@@ -135,6 +125,44 @@ public class App extends Application {
         card.getChildren().addAll(timesUp, winnerLabel, winsLabel, scoreLine, btnRow);
         backdrop.getChildren().add(card);
         return backdrop;
+    }
+
+    private void showSuddenDeathAnnouncement(StackPane root, String pf, GameState state) {
+        StackPane backdrop = new StackPane();
+        backdrop.setStyle("-fx-background-color: rgba(0,0,0,0.78);");
+
+        VBox box = new VBox(16);
+        box.setAlignment(Pos.CENTER);
+
+        Label title = new Label("SUDDEN DEATH!");
+        title.setStyle("-fx-font-family: " + pf + "; -fx-font-size: 48px; -fx-text-fill: #ff4444;");
+        javafx.scene.effect.DropShadow glow = new javafx.scene.effect.DropShadow();
+        glow.setColor(javafx.scene.paint.Color.web("#ff0000"));
+        glow.setRadius(20);
+        glow.setSpread(0.4);
+        title.setEffect(glow);
+
+        Label sub = new Label("First to score wins!");
+        sub.setStyle("-fx-font-family: " + pf + "; -fx-font-size: 14px; -fx-text-fill: #ffee88;");
+
+        box.getChildren().addAll(title, sub);
+
+        javafx.animation.ScaleTransition pop = new javafx.animation.ScaleTransition(javafx.util.Duration.millis(350), box);
+        pop.setFromX(0.4); pop.setFromY(0.4);
+        pop.setToX(1.0);   pop.setToY(1.0);
+        pop.setInterpolator(javafx.animation.Interpolator.EASE_OUT);
+        pop.play();
+
+        backdrop.getChildren().add(box);
+        root.getChildren().add(backdrop);
+
+        javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(javafx.util.Duration.seconds(2.5));
+        pause.setOnFinished(e -> {
+            root.getChildren().remove(backdrop);
+            state.startSuddenDeath();
+            gameLoop.start();
+        });
+        pause.play();
     }
 
     private Button buildCardButton(String pf, String text, String bgColor, String textColor) {
@@ -325,12 +353,15 @@ public class App extends Application {
         root.requestFocus();
 
         gameLoop = new GameLoop(client, renderer, hudRenderer, finalMyPid, finalOtherPid, () -> Platform.runLater(() -> {
+            if (!state.isSuddenDeath() && state.getScoreP1() == state.getScoreP2()) {
+                showSuddenDeathAnnouncement(root, pf, state);
+                return;
+            }
             AudioManager.getInstance().playLanding();
             StackPane overlay = buildGameOverCard(pf,
                     state.getScoreP1(), state.getScoreP2(), state.isSuddenDeath(),
                     () -> { root.getChildren().remove(root.getChildren().size() - 1); stopOnlineGameAndReturnToMenu(); },
-                    this::stopOnlineGameAndReturnToMenu,
-                    () -> { root.getChildren().remove(root.getChildren().size() - 1); stopOnlineGameAndReturnToMenu(); });
+                    this::stopOnlineGameAndReturnToMenu);
             root.getChildren().add(overlay);
         }));
 
@@ -445,19 +476,17 @@ public class App extends Application {
         root.requestFocus();
 
         gameLoop = new GameLoop(state, renderer, hudRenderer, () -> Platform.runLater(() -> {
+            if (!state.isSuddenDeath() && state.getScoreP1() == state.getScoreP2()) {
+                showSuddenDeathAnnouncement(root, pf, state);
+                return;
+            }
             AudioManager.getInstance().playLanding();
             StackPane overlay = buildGameOverCard(pf, state.getScoreP1(), state.getScoreP2(), state.isSuddenDeath(),
                     () -> { // Replay
                         root.getChildren().remove(root.getChildren().size() - 1);
                         stopGameAndRestart();
                     },
-                    () -> stopGameAndReturnToMenu(),
-                    () -> { // Sudden Death
-                        root.getChildren().remove(root.getChildren().size() - 1);
-                        state.startSuddenDeath();
-                        // We need to restart the loop because it stopped on isGameOver
-                        gameLoop.start();
-                    });
+                    () -> stopGameAndReturnToMenu());
             root.getChildren().add(overlay);
         }));
 

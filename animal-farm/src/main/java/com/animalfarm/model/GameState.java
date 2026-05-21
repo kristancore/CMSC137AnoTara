@@ -170,7 +170,9 @@ public class GameState {
             for (int i = 1; i < laneUnits.size(); i++) {
                 Unit prev = laneUnits.get(i - 1);
                 Unit curr = laneUnits.get(i);
-                if (curr.getX() <= prev.getX() + prev.getType().getWidth() + 2) {
+                boolean touching = curr.getX() <= prev.getX() + prev.getType().getWidth() + 2;
+                boolean enemyContact = prev.getDirection() != curr.getDirection();
+                if (touching && enemyContact) {
                     currentGroup.add(curr);
                 } else {
                     currentGroup = new ArrayList<>();
@@ -179,30 +181,118 @@ public class GameState {
                 }
             }
 
+            // Track battle leaders for same-team clamping after all groups resolve
+            Unit t1BattleLeader = null, t2BattleLeader = null;
+
+            // Separate sorted lists for chain-HP calculation
+            List<Unit> t1Lane = new ArrayList<>();
+            List<Unit> t2Lane = new ArrayList<>();
+            for (Unit u : laneUnits) {
+                if (u.getDirection() == 1) t1Lane.add(u);
+                else t2Lane.add(u);
+            }
+            // t1Lane: ascending X → t1Front is last; t2Lane: ascending X → t2Front is first
+
             for (List<Unit> group : groups) {
                 double p1Power = 0, p2Power = 0;
                 double p1Speed = 0, p2Speed = 0;
+                Unit t1Front = null, t2Front = null;
+                boolean isBattleGroup = false;
+
                 for (Unit u : group) {
                     if (u.getDirection() == 1) {
-                        p1Power += u.getType().getHp();
                         p1Speed = Math.max(p1Speed, u.getType().getSpeed());
+                        if (t1Front == null || u.getX() > t1Front.getX()) t1Front = u;
                     } else {
-                        p2Power += u.getType().getHp();
                         p2Speed = Math.max(p2Speed, u.getType().getSpeed());
+                        if (t2Front == null || u.getX() < t2Front.getX()) t2Front = u;
+                    }
+                }
+
+                isBattleGroup = (t1Front != null && t2Front != null);
+                if (isBattleGroup) {
+                    // Only count units physically stacked at the contact front (consecutive touching chain)
+                    if (t1Front != null) {
+                        p1Power = t1Front.getType().getHp();
+                        double chainLeft = t1Front.getX();
+                        for (int i = t1Lane.size() - 2; i >= 0; i--) {
+                            Unit u = t1Lane.get(i);
+                            if (u.getX() + u.getType().getWidth() >= chainLeft - 2) {
+                                p1Power += u.getType().getHp();
+                                chainLeft = u.getX();
+                            } else break;
+                        }
+                    }
+                    if (t2Front != null) {
+                        p2Power = t2Front.getType().getHp();
+                        double chainRight = t2Front.getX() + t2Front.getType().getWidth();
+                        for (int i = 1; i < t2Lane.size(); i++) {
+                            Unit u = t2Lane.get(i);
+                            if (u.getX() <= chainRight + 2) {
+                                p2Power += u.getType().getHp();
+                                chainRight = u.getX() + u.getType().getWidth();
+                            } else break;
+                        }
+                    }
+                } else {
+                    // Free-moving group: no enemy contact, just move at own speed
+                    for (Unit u : group) {
+                        if (u.getDirection() == 1) p1Power += u.getType().getHp();
+                        else                       p2Power += u.getType().getHp();
                     }
                 }
 
                 double moveDir = 0, moveSpeed = 0;
-                if (p2Power == 0) { moveDir = 1; moveSpeed = p1Speed; }
-                else if (p1Power == 0) { moveDir = -1; moveSpeed = p2Speed; }
-                else {
-                    if (p1Power > p2Power) { moveDir = 1; moveSpeed = 15; }
-                    else if (p2Power > p1Power) { moveDir = -1; moveSpeed = 15; }
-                }
+                if (p2Power == 0)           { moveDir =  1; moveSpeed = p1Speed; }
+                else if (p1Power == 0)      { moveDir = -1; moveSpeed = p2Speed; }
+                else if (p1Power > p2Power) { moveDir =  1; moveSpeed = 15; }
+                else if (p2Power > p1Power) { moveDir = -1; moveSpeed = 15; }
 
                 for (Unit u : group) {
                     u.setX(u.getX() + moveSpeed * moveDir * delta);
                     u.setAnimationTimer(u.getAnimationTimer() + delta);
+                }
+
+                // Flush snap: snap enemy fronts to rigid contact (handles both gaps and overlaps)
+                if (t1Front != null && t2Front != null) {
+                    double contactError = (t1Front.getX() + t1Front.getType().getWidth()) - t2Front.getX();
+                    if (moveDir >= 0) {
+                        // T1 wins or tied: T1 is authoritative, snap T2 side
+                        for (Unit u : group) {
+                            if (u.getDirection() == -1) u.setX(u.getX() + contactError);
+                        }
+                    } else {
+                        // T2 wins: T2 is authoritative, snap T1 side
+                        for (Unit u : group) {
+                            if (u.getDirection() == 1) u.setX(u.getX() - contactError);
+                        }
+                    }
+
+                    // Record battle leaders for the clamp pass below
+                    if (t1BattleLeader == null || t1Front.getX() > t1BattleLeader.getX())
+                        t1BattleLeader = t1Front;
+                    if (t2BattleLeader == null || t2Front.getX() < t2BattleLeader.getX())
+                        t2BattleLeader = t2Front;
+                }
+            }
+
+            // Same-team clamp: trailing units cannot advance past the battle leader.
+            // This prevents compression when the leader is held or pushed back.
+            if (t1BattleLeader != null) {
+                double clampRight = t1BattleLeader.getX();
+                for (Unit u : laneUnits) {
+                    if (u.getDirection() == 1 && u != t1BattleLeader) {
+                        double maxX = clampRight - u.getType().getWidth();
+                        if (u.getX() > maxX) u.setX(maxX);
+                    }
+                }
+            }
+            if (t2BattleLeader != null) {
+                double clampLeft = t2BattleLeader.getX() + t2BattleLeader.getType().getWidth();
+                for (Unit u : laneUnits) {
+                    if (u.getDirection() == -1 && u != t2BattleLeader) {
+                        if (u.getX() < clampLeft) u.setX(clampLeft);
+                    }
                 }
             }
         }
