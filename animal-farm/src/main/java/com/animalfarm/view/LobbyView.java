@@ -29,6 +29,7 @@ public class LobbyView {
     private final Runnable onLeave;                  // joiner leaves
 
     private final StackPane root = new StackPane();
+    private final StackPane contentPane = new StackPane();
     private final Scene scene;
 
     // Shared chat widgets (swapped into each panel)
@@ -81,6 +82,35 @@ public class LobbyView {
                 "-fx-prompt-text-fill: #4a7744;");
 
         root.setStyle("-fx-background-color: #0e1e08;");
+        try {
+            java.io.InputStream bgIs = getClass().getResourceAsStream("/ui/menu-background.png");
+            if (bgIs != null) {
+                javafx.scene.image.ImageView bgView = new javafx.scene.image.ImageView(new javafx.scene.image.Image(bgIs));
+                bgView.setFitWidth(GameConfig.WINDOW_WIDTH);
+                bgView.setFitHeight(GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT);
+                bgView.setPreserveRatio(false);
+                root.getChildren().add(bgView);
+            }
+
+            java.io.InputStream raysIs = getClass().getResourceAsStream("/ui/menu-rays.png");
+            if (raysIs != null) {
+                javafx.scene.image.ImageView raysView = new javafx.scene.image.ImageView(new javafx.scene.image.Image(raysIs));
+                raysView.setPreserveRatio(true);
+                double size = Math.max(GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT) * 1.5;
+                raysView.setFitWidth(size);
+                raysView.setFitHeight(size);
+
+                javafx.animation.RotateTransition rt = new javafx.animation.RotateTransition(
+                        javafx.util.Duration.seconds(40), raysView);
+                rt.setByAngle(360);
+                rt.setCycleCount(javafx.animation.Animation.INDEFINITE);
+                rt.setInterpolator(javafx.animation.Interpolator.LINEAR);
+                rt.play();
+
+                root.getChildren().add(raysView);
+            }
+        } catch (Exception e) {}
+        root.getChildren().add(contentPane);
         scene = new Scene(root, GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT);
         showSelectScreen();
     }
@@ -94,7 +124,7 @@ public class LobbyView {
     public void showSelectScreen() {
         chatArea.clear();
         currentClient = null;
-        root.getChildren().setAll(buildSelectPanel());
+        contentPane.getChildren().setAll(buildSelectPanel());
     }
 
     private VBox buildSelectPanel() {
@@ -177,7 +207,7 @@ public class LobbyView {
                 joinCodeField,
                 btnRow);
 
-        root.getChildren().setAll(panel);
+        contentPane.getChildren().setAll(panel);
     }
 
     /** Update the join panel status (e.g. on discovery failure). Re-enables input on error. */
@@ -244,7 +274,7 @@ public class LobbyView {
                 buildChatBox(),
                 btnRow);
 
-        root.getChildren().setAll(panel);
+        contentPane.getChildren().setAll(panel);
     }
 
     // -----------------------------------------------------------------------
@@ -276,7 +306,7 @@ public class LobbyView {
                 buildChatBox(),
                 leaveBtn);
 
-        root.getChildren().setAll(panel);
+        contentPane.getChildren().setAll(panel);
     }
 
     // -----------------------------------------------------------------------
