@@ -7,13 +7,6 @@ import java.net.Socket;
 import java.util.*;
 import java.util.function.Consumer;
 
-/**
- * TCP client for online play.
- *
- * Connects to the host's GameServer, verifies the lobby code,
- * receives lobby updates and STATE snapshots, and sends input commands.
- * All network I/O runs on a background virtual thread.
- */
 public class GameClient {
 
     public enum Status { CONNECTING, WAITING, CAN_START, IN_GAME, GAME_OVER, ERROR }
@@ -22,16 +15,20 @@ public class GameClient {
     private final String expectedCode;
     private final String nickname;
     private final Consumer<Status> onStatus;
-    /** Fires with "N/M" strings on player count changes. */
     private final Consumer<String> onLobbyUpdate;
-    /** Fires with formatted chat lines on messages from any player. */
     private final Consumer<String> onChatMessage;
 
-    private volatile int myPlayerId = -1;
+    private volatile int mySlotId   = -1;  // connection slot (join order 1-4)
+    private volatile int myPlayerId = -1;  // game PID (remapped for 4P at START)
+    private volatile int lobbyRequired = -1;
     private volatile GameState state;
     private volatile Status status = Status.CONNECTING;
-    private final Map<Integer, String> knownNicks = new HashMap<>();
 
+    private final Map<Integer, String>  knownNicks = new HashMap<>();  // slot → nick
+    private final Map<Integer, Integer> knownTeams = new HashMap<>();  // slot → team 0/1/2
+    private final String[] namePid = new String[5]; // 1-indexed by game PID, filled on START
+
+    private Runnable onRosterUpdate;
     private PrintWriter out;
     private Thread ioThread;
     private volatile boolean running = false;
@@ -40,17 +37,13 @@ public class GameClient {
                       Consumer<Status> onStatus,
                       Consumer<String> onLobbyUpdate,
                       Consumer<String> onChatMessage) {
-        this.host           = host;
-        this.expectedCode   = lobbyCode.trim().toUpperCase();
-        this.nickname       = nickname;
-        this.onStatus       = onStatus;
-        this.onLobbyUpdate  = onLobbyUpdate;
-        this.onChatMessage  = onChatMessage;
+        this.host          = host;
+        this.expectedCode  = lobbyCode.trim().toUpperCase();
+        this.nickname      = nickname;
+        this.onStatus      = onStatus;
+        this.onLobbyUpdate = onLobbyUpdate;
+        this.onChatMessage = onChatMessage;
     }
-
-    // -----------------------------------------------------------------------
-    // Connect
-    // -----------------------------------------------------------------------
 
     public void connect() {
         running = true;
@@ -60,13 +53,9 @@ public class GameClient {
     private void ioLoop() {
         try (Socket sock = new Socket(host, GameConfig.SERVER_PORT);
              BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()))) {
-
             out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(sock.getOutputStream())), true);
-
             String line;
-            while (running && (line = in.readLine()) != null) {
-                handleLine(line.trim());
-            }
+            while (running && (line = in.readLine()) != null) handleLine(line.trim());
         } catch (IOException e) {
             if (running) setStatus(Status.ERROR);
         }
@@ -85,51 +74,74 @@ public class GameClient {
                         setStatus(Status.ERROR);
                         return;
                     }
-                    myPlayerId = parseInt(args[0], -1);
+                    mySlotId   = parseInt(args[0], -1);
+                    myPlayerId = mySlotId;
                     if (out != null) out.println(Protocol.nick(nickname));
                     setStatus(Status.WAITING);
                 }
             }
             case Protocol.MSG_PLAYER_JOINED -> {
-                // args[0]=connected, args[1]=required
-                String countStr = (args.length >= 2) ? args[0] + "/" + args[1] : "?/?";
-                setStatus(Status.WAITING);
-                if (onLobbyUpdate != null) onLobbyUpdate.accept(countStr);
+                if (args.length >= 2) {
+                    lobbyRequired = parseInt(args[1], -1);
+                    String countStr = args[0] + "/" + args[1];
+                    setStatus(Status.WAITING);
+                    if (onLobbyUpdate != null) onLobbyUpdate.accept(countStr);
+                }
             }
             case Protocol.MSG_CAN_START -> setStatus(Status.CAN_START);
             case Protocol.MSG_NICK_UPDATE -> {
-                // NICK_UPDATE <pid> <name>
-                if (args.length >= 2) {
-                    int pid = parseInt(args[0], 0);
-                    String name = line.substring(Protocol.MSG_NICK_UPDATE.length() + 1 + args[0].length() + 1);
-                    if (pid > 0) knownNicks.put(pid, name);
+                if (args.length >= 1) {
+                    int slot = parseInt(args[0], 0);
+                    if (slot > 0) {
+                        if (args.length >= 2) {
+                            // Full name present — extract from raw line to preserve spaces
+                            String name = line.substring(Protocol.MSG_NICK_UPDATE.length() + 1 + args[0].length() + 1);
+                            knownNicks.put(slot, name);
+                        } else {
+                            // No name part — player left, clear this slot
+                            knownNicks.remove(slot);
+                        }
+                        if (onRosterUpdate != null) onRosterUpdate.run();
+                    }
                 }
             }
+            case Protocol.MSG_TEAM_ROSTER -> {
+                for (int i = 0; i < 4 && i < args.length; i++)
+                    knownTeams.put(i + 1, parseInt(args[i], 0));
+                if (onRosterUpdate != null) onRosterUpdate.run();
+            }
             case Protocol.MSG_CHAT -> {
-                // CHAT <pid> <message...>  — pid=0 means system event
                 if (args.length >= 1 && onChatMessage != null) {
                     int pid = parseInt(args[0], 0);
                     String msg = args.length >= 2
-                            ? line.substring(Protocol.MSG_CHAT.length() + 1 + args[0].length() + 1)
-                            : "";
-                    if (pid == 0) {
-                        onChatMessage.accept(msg);
-                    } else {
-                        String name = knownNicks.getOrDefault(pid, "P" + pid);
-                        onChatMessage.accept(name + ": " + msg);
-                    }
+                            ? line.substring(Protocol.MSG_CHAT.length() + 1 + args[0].length() + 1) : "";
+                    if (pid == 0) onChatMessage.accept(msg);
+                    else onChatMessage.accept(knownNicks.getOrDefault(pid, "P" + pid) + ": " + msg);
                 }
             }
             case Protocol.MSG_START -> {
                 int playerCount = args.length > 0 ? parseInt(args[0], 2) : 2;
                 state = new GameState();
-                if (playerCount == 4) state.activate4P();
-                else state.activateOnline2P();
+                if (playerCount == 4) {
+                    state.activate4P();
+                    // args[1..4] = game PID for each connection slot
+                    if (mySlotId > 0 && args.length > mySlotId)
+                        myPlayerId = parseInt(args[mySlotId], mySlotId);
+                    for (int slot = 1; slot <= 4; slot++) {
+                        if (slot < args.length) {
+                            int gPid = parseInt(args[slot], slot);
+                            if (gPid >= 1 && gPid <= 4)
+                                namePid[gPid] = knownNicks.getOrDefault(slot, "P" + slot);
+                        }
+                    }
+                } else {
+                    state.activateOnline2P();
+                    namePid[1] = knownNicks.getOrDefault(1, "P1");
+                    namePid[2] = knownNicks.getOrDefault(2, "P2");
+                }
                 setStatus(Status.IN_GAME);
             }
-            case Protocol.MSG_STATE -> {
-                if (state != null) applySnapshot(Protocol.stateJson(line));
-            }
+            case Protocol.MSG_STATE  -> { if (state != null) applySnapshot(Protocol.stateJson(line)); }
             case Protocol.MSG_GAME_OVER -> {
                 if (state != null) state.setGameOver(true);
                 setStatus(Status.GAME_OVER);
@@ -138,19 +150,15 @@ public class GameClient {
     }
 
     // -----------------------------------------------------------------------
-    // Snapshot application (manual JSON parsing — no external dependencies)
+    // Snapshot
     // -----------------------------------------------------------------------
 
     private void applySnapshot(String json) {
         if (json == null || json.isBlank() || state == null) return;
         try {
             state.setTimeRemaining(readDouble(json, "\"t\":", state.getTimeRemaining()));
-
             double[] scores = readDoubleArray(json, "\"s\":");
-            if (scores.length >= 2) {
-                state.setScoreP1((int) scores[0]);
-                state.setScoreP2((int) scores[1]);
-            }
+            if (scores.length >= 2) { state.setScoreP1((int) scores[0]); state.setScoreP2((int) scores[1]); }
 
             double[] cds = readDoubleArray(json, "\"cd\":");
             for (int i = 0; i < cds.length; i++) {
@@ -159,47 +167,37 @@ public class GameClient {
             }
 
             double[] nxts = readDoubleArray(json, "\"nxt\":");
-            for (int i = 0; i < nxts.length && i < nextUnitOrdinal.length; i++) {
+            for (int i = 0; i < nxts.length && i < nextUnitOrdinal.length; i++)
                 nextUnitOrdinal[i] = (int) nxts[i];
-            }
 
             double[] rows = readDoubleArray(json, "\"rows\":");
-            boolean is4P = state.getMode() == com.animalfarm.model.GameState.GameMode.ONLINE_4P;
-            // In 4P, teammates share a barn — only the local player drives their team's barn,
-            // and the first enemy pid drives the enemy barn; skip all other teammates.
+            boolean is4P = state.getMode() == GameState.GameMode.ONLINE_4P;
             int enemyRepPid = is4P ? (myPlayerId <= 2 ? 3 : 1) : -1;
             for (int i = 0; i < rows.length; i++) {
                 int pid = i + 1;
-                if (state.getPlayer(pid) == null) continue; // skip inactive players
+                if (state.getPlayer(pid) == null) continue;
                 int row = (int) rows[i];
                 state.setSelectedRow(pid, row);
                 int teamId = is4P ? (pid <= 2 ? 1 : 2) : (pid == 1 ? 1 : 2);
-                if (!is4P || pid == myPlayerId || pid == enemyRepPid) {
-                    state.getLane().getBarn(teamId).setY(com.animalfarm.model.GameConfig.laneY(row) - 27.5);
-                }
+                if (!is4P || pid == myPlayerId || pid == enemyRepPid)
+                    state.getLane().getBarn(teamId).setY(GameConfig.laneY(row) - 27.5);
             }
-
             applyBarns(json);
             applyUnits(json);
-
-        } catch (Exception ignored) {
-            // Malformed snapshot — skip this frame
-        }
+        } catch (Exception ignored) {}
     }
 
     private final int[] nextUnitOrdinal = {-1, -1, -1, -1};
-
-    public int getNextUnitOrdinal(int playerIndex) { return nextUnitOrdinal[playerIndex]; }
+    public int getNextUnitOrdinal(int idx) { return nextUnitOrdinal[idx]; }
 
     private void applyBarns(String json) {
         int idx = json.indexOf("\"barns\":[");
         if (idx < 0) return;
-        int start = json.indexOf('[', idx);
-        int end   = json.indexOf(']', start);
+        int start = json.indexOf('[', idx), end = json.indexOf(']', start);
         if (start < 0 || end < 0) return;
         for (String entry : splitObjects(json.substring(start + 1, end))) {
-            int team   = (int) readDouble(entry, "\"team\":", -1);
-            double hp  = readDouble(entry, "\"hp\":", -1);
+            int team = (int) readDouble(entry, "\"team\":", -1);
+            double hp = readDouble(entry, "\"hp\":", -1);
             if (team > 0 && hp >= 0) state.getLane().getBarn(team).setHp(hp);
         }
     }
@@ -207,29 +205,23 @@ public class GameClient {
     private void applyUnits(String json) {
         int idx = json.indexOf("\"units\":[");
         if (idx < 0) return;
-        int start = json.indexOf('[', idx);
-        int end   = findMatchingBracket(json, start);
+        int start = json.indexOf('[', idx), end = findMatchingBracket(json, start);
         if (start < 0 || end < 0) return;
         String arr = json.substring(start + 1, end);
-
         List<Unit> newUnits = new ArrayList<>();
         if (!arr.isBlank()) {
             for (String entry : splitObjects(arr)) {
                 try {
-                    int pid     = (int) readDouble(entry, "\"pid\":", 1);
-                    int t       = (int) readDouble(entry, "\"t\":", 0);
-                    double x    = readDouble(entry, "\"x\":", 0);
-                    double y    = readDouble(entry, "\"y\":", 0);
-                    double hp   = readDouble(entry, "\"hp\":", 0);
-                    int dir     = (int) readDouble(entry, "\"dir\":", 1);
+                    int pid = (int) readDouble(entry, "\"pid\":", 1);
+                    int t   = (int) readDouble(entry, "\"t\":", 0);
+                    double x = readDouble(entry, "\"x\":", 0), y = readDouble(entry, "\"y\":", 0);
+                    double hp = readDouble(entry, "\"hp\":", 0);
+                    int dir = (int) readDouble(entry, "\"dir\":", 1);
                     double anim = readDouble(entry, "\"anim\":", 0);
                     UnitType[] types = UnitType.values();
                     if (t < 0 || t >= types.length) continue;
                     Unit u = new Unit(types[t], x, y);
-                    u.setHp(hp);
-                    u.setDirection(dir);
-                    u.setPlayerId(pid);
-                    u.setAnimationTimer(anim);
+                    u.setHp(hp); u.setDirection(dir); u.setPlayerId(pid); u.setAnimationTimer(anim);
                     newUnits.add(u);
                 } catch (Exception ignored) {}
             }
@@ -241,25 +233,32 @@ public class GameClient {
     // Commands
     // -----------------------------------------------------------------------
 
-    public void sendSpawn(int lane) {
-        if (out != null) out.println(Protocol.spawn(lane));
-    }
-
-    public void sendLaneSelect(int row) {
-        if (out != null) out.println(Protocol.laneSelect(row));
-    }
-
-    public void sendChat(String msg) {
-        if (out != null && !msg.isBlank()) out.println(Protocol.CMD_CHAT + " " + msg);
-    }
+    public void sendSpawn(int lane)      { if (out != null) out.println(Protocol.spawn(lane)); }
+    public void sendLaneSelect(int row)  { if (out != null) out.println(Protocol.laneSelect(row)); }
+    public void sendChat(String msg)     { if (out != null && !msg.isBlank()) out.println(Protocol.CMD_CHAT + " " + msg); }
+    public void sendTeamSelect(int team) { if (out != null) out.println(Protocol.teamSelect(team)); }
 
     // -----------------------------------------------------------------------
     // Accessors
     // -----------------------------------------------------------------------
 
-    public int getMyPlayerId() { return myPlayerId; }
-    public GameState getState() { return state; }
-    public Status getStatus()   { return status; }
+    public int getMyPlayerId()    { return myPlayerId; }
+    public int getMySlotId()      { return mySlotId; }
+    public int getLobbyRequired() { return lobbyRequired; }
+    public GameState getState()   { return state; }
+    public Status getStatus()     { return status; }
+
+    /** Nickname for a connection slot (1-4), or null if the slot is vacant. */
+    public String getSlotName(int slot) { return knownNicks.get(slot); }
+    /** Team preference (0=unset, 1, 2) for a connection slot. */
+    public int getKnownTeam(int slot)   { return knownTeams.getOrDefault(slot, 0); }
+    /** Display name for a game PID (available after START). */
+    public String getPlayerName(int gamePid) {
+        if (gamePid >= 1 && gamePid <= 4 && namePid[gamePid] != null) return namePid[gamePid];
+        return "P" + gamePid;
+    }
+
+    public void setOnRosterUpdate(Runnable r) { this.onRosterUpdate = r; }
 
     public void disconnect() {
         running = false;
@@ -267,36 +266,28 @@ public class GameClient {
     }
 
     // -----------------------------------------------------------------------
-    // Helpers
+    // JSON helpers
     // -----------------------------------------------------------------------
 
-    private void setStatus(Status s) {
-        status = s;
-        if (onStatus != null) onStatus.accept(s);
-    }
+    private void setStatus(Status s) { status = s; if (onStatus != null) onStatus.accept(s); }
 
     private static double readDouble(String json, String key, double fallback) {
-        int idx = json.indexOf(key);
-        if (idx < 0) return fallback;
+        int idx = json.indexOf(key); if (idx < 0) return fallback;
         int start = idx + key.length();
         while (start < json.length() && json.charAt(start) == ' ') start++;
         int end = start;
         while (end < json.length() && "-0123456789.eE".indexOf(json.charAt(end)) >= 0) end++;
-        try { return Double.parseDouble(json.substring(start, end)); }
-        catch (NumberFormatException e) { return fallback; }
+        try { return Double.parseDouble(json.substring(start, end)); } catch (NumberFormatException e) { return fallback; }
     }
 
     private static double[] readDoubleArray(String json, String key) {
-        int idx = json.indexOf(key);
-        if (idx < 0) return new double[0];
-        int start = json.indexOf('[', idx + key.length());
-        int end   = json.indexOf(']', start);
+        int idx = json.indexOf(key); if (idx < 0) return new double[0];
+        int start = json.indexOf('[', idx + key.length()), end = json.indexOf(']', start);
         if (start < 0 || end < 0) return new double[0];
         String[] parts = json.substring(start + 1, end).split(",");
         double[] result = new double[parts.length];
         for (int i = 0; i < parts.length; i++) {
-            try { result[i] = Double.parseDouble(parts[i].trim()); }
-            catch (NumberFormatException e) { result[i] = 0; }
+            try { result[i] = Double.parseDouble(parts[i].trim()); } catch (NumberFormatException e) { result[i] = 0; }
         }
         return result;
     }
@@ -307,10 +298,7 @@ public class GameClient {
         for (int i = 0; i < arr.length(); i++) {
             char c = arr.charAt(i);
             if (c == '{') { if (depth == 0) start = i; depth++; }
-            else if (c == '}') {
-                depth--;
-                if (depth == 0 && start >= 0) { results.add(arr.substring(start, i + 1)); start = -1; }
-            }
+            else if (c == '}') { depth--; if (depth == 0 && start >= 0) { results.add(arr.substring(start, i + 1)); start = -1; } }
         }
         return results.toArray(new String[0]);
     }
@@ -327,5 +315,4 @@ public class GameClient {
     private static int parseInt(String s, int fallback) {
         try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return fallback; }
     }
-
 }

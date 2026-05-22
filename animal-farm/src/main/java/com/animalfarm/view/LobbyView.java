@@ -9,38 +9,33 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.text.TextAlignment;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
-/**
- * Lobby UI — a single Scene whose root is swapped between three panels:
- *   1. Lobby select (Create / Join, 2P / 4P)
- *   2. Host waiting room (code, IPs, player count, chat, START)
- *   3. Join waiting room (status, player count, chat, LEAVE)
- *
- * App.java creates the GameServer/GameClient and calls the showXxx() methods.
- */
 public class LobbyView {
 
-    private final String pf; // font-family CSS string
+    private final String pf;
     private final Runnable onBack;
-    private final Consumer<Integer> onCreateLobby;   // playerCount
-    private final Consumer<String> onJoinLobby;      // code only — IP discovered automatically
-    private final Runnable onStartGame;              // host presses START
-    private final Runnable onLeave;                  // joiner leaves
+    private final Consumer<Integer> onCreateLobby;
+    private final Consumer<String> onJoinLobby;
+    private final Runnable onStartGame;
+    private final Runnable onLeave;
+    private Consumer<Integer> onTeamSelect;
 
     private final StackPane root = new StackPane();
     private final StackPane contentPane = new StackPane();
     private final Scene scene;
 
-    // Shared chat widgets (swapped into each panel)
     private final TextArea chatArea = new TextArea();
     private final TextField chatInput = new TextField();
-    private GameClient currentClient; // for sendChat()
+    private GameClient currentClient;
 
-    // Nickname field — lives on the select screen, persists for the session
     private final TextField nicknameField = new TextField();
 
-    // Labels updated from outside
+    // Roster panel — shared and updated in-place
+    private final VBox rosterSection = new VBox(6);
+
     private Label playerCountLabel = new Label();
     private Label joinStatusLabel;
     private Button joinConnectBtn;
@@ -52,70 +47,78 @@ public class LobbyView {
                      Consumer<String> onJoinLobby,
                      Runnable onStartGame,
                      Runnable onLeave) {
-        this.pf             = fontFam;
-        this.onBack         = onBack;
-        this.onCreateLobby  = onCreateLobby;
-        this.onJoinLobby    = onJoinLobby;
-        this.onStartGame    = onStartGame;
-        this.onLeave        = onLeave;
+        this.pf            = fontFam;
+        this.onBack        = onBack;
+        this.onCreateLobby = onCreateLobby;
+        this.onJoinLobby   = onJoinLobby;
+        this.onStartGame   = onStartGame;
+        this.onLeave       = onLeave;
 
-        // Chat area style (shared across panels)
         chatArea.setEditable(false);
         chatArea.setWrapText(true);
-        chatArea.setPrefHeight(160);
+        chatArea.setPrefHeight(130);
         chatArea.setStyle(
                 "-fx-font-family: " + pf + "; -fx-font-size: 7px;" +
-                "-fx-background-color: #0d2208; -fx-text-fill: #ccffcc;" +
-                "-fx-control-inner-background: #0d2208;");
+                "-fx-background-color: #0a1a06; -fx-text-fill: #ccffcc;" +
+                "-fx-control-inner-background: #0a1a06;");
 
         chatInput.setPromptText("Type a message...");
         chatInput.setStyle(
                 "-fx-font-family: " + pf + "; -fx-font-size: 8px;" +
-                "-fx-background-color: #0d2208; -fx-text-fill: white;" +
-                "-fx-prompt-text-fill: #4a7744;");
+                "-fx-background-color: #0a1a06; -fx-text-fill: white;" +
+                "-fx-prompt-text-fill: #669966;");
 
-        nicknameField.setPromptText("Your nickname (optional)");
+        nicknameField.setPromptText("Enter your nickname");
         nicknameField.setMaxWidth(340);
         nicknameField.setStyle(
                 "-fx-font-family: " + pf + "; -fx-font-size: 8px;" +
-                "-fx-background-color: #0d2208; -fx-text-fill: white;" +
-                "-fx-prompt-text-fill: #4a7744;");
+                "-fx-background-color: #0a1a06; -fx-text-fill: white;" +
+                "-fx-prompt-text-fill: #669966;");
 
+        // Roster section: initially hidden, shown for 4P lobbies
+        rosterSection.setVisible(false);
+        rosterSection.setManaged(false);
+        rosterSection.setStyle("-fx-background-color: #0a1a06; -fx-padding: 10;");
+
+        // Background
         root.setStyle("-fx-background-color: #0e1e08;");
         try {
             java.io.InputStream bgIs = getClass().getResourceAsStream("/ui/menu-background.png");
             if (bgIs != null) {
-                javafx.scene.image.ImageView bgView = new javafx.scene.image.ImageView(new javafx.scene.image.Image(bgIs));
+                javafx.scene.image.ImageView bgView = new javafx.scene.image.ImageView(
+                        new javafx.scene.image.Image(bgIs));
                 bgView.setFitWidth(GameConfig.WINDOW_WIDTH);
                 bgView.setFitHeight(GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT);
                 bgView.setPreserveRatio(false);
                 root.getChildren().add(bgView);
             }
-
             java.io.InputStream raysIs = getClass().getResourceAsStream("/ui/menu-rays.png");
             if (raysIs != null) {
-                javafx.scene.image.ImageView raysView = new javafx.scene.image.ImageView(new javafx.scene.image.Image(raysIs));
+                javafx.scene.image.ImageView raysView = new javafx.scene.image.ImageView(
+                        new javafx.scene.image.Image(raysIs));
                 raysView.setPreserveRatio(true);
-                double size = Math.max(GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT) * 1.5;
+                double size = Math.max(GameConfig.WINDOW_WIDTH,
+                        GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT) * 1.5;
                 raysView.setFitWidth(size);
                 raysView.setFitHeight(size);
-
                 javafx.animation.RotateTransition rt = new javafx.animation.RotateTransition(
                         javafx.util.Duration.seconds(40), raysView);
                 rt.setByAngle(360);
                 rt.setCycleCount(javafx.animation.Animation.INDEFINITE);
                 rt.setInterpolator(javafx.animation.Interpolator.LINEAR);
                 rt.play();
-
                 root.getChildren().add(raysView);
             }
-        } catch (Exception e) {}
+        } catch (Exception ignored) {}
         root.getChildren().add(contentPane);
+
         scene = new Scene(root, GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT);
         showSelectScreen();
     }
 
     public Scene getLobbyScene() { return scene; }
+
+    public void setOnTeamSelect(Consumer<Integer> handler) { this.onTeamSelect = handler; }
 
     // -----------------------------------------------------------------------
     // Panel 1 — Lobby select
@@ -128,7 +131,7 @@ public class LobbyView {
     }
 
     private VBox buildSelectPanel() {
-        VBox panel = centeredPanel(380);
+        VBox panel = centeredPanel(420);
 
         Label title = styled("PLAY ONLINE", 14);
         title.setStyle(title.getStyle() + " -fx-text-fill: #ffee44;");
@@ -137,35 +140,55 @@ public class LobbyView {
 
         ToggleGroup modeGroup = new ToggleGroup();
         RadioButton rb2 = styledRadio("2 Players  (1 vs 1)", modeGroup);
-        RadioButton rb4 = styledRadio("4 Players  (2 vs 2, doubled cooldown)", modeGroup);
+        RadioButton rb4 = styledRadio("4 Players  (2 vs 2)", modeGroup);
         rb2.setSelected(true);
 
         VBox modeBox = new VBox(8, rb2, rb4);
         modeBox.setAlignment(Pos.CENTER_LEFT);
         modeBox.setPadding(new Insets(0, 0, 0, 20));
 
+        Label nickLabel = styled("Nickname (required):", 7);
+        nickLabel.setStyle(nickLabel.getStyle() + " -fx-text-fill: #ffee88;");
+
+        Label nickErrorLabel = styled("Nickname cannot be empty!", 7);
+        nickErrorLabel.setStyle(nickErrorLabel.getStyle() + " -fx-text-fill: #ff5555;");
+        nickErrorLabel.setVisible(false);
+        nickErrorLabel.setManaged(false);
+
         Button createBtn = menuBtn("CREATE LOBBY");
         Button joinBtn   = menuBtn("JOIN LOBBY");
         Button backBtn   = menuBtn("BACK");
 
         createBtn.setOnAction(e -> {
+            if (nicknameField.getText().trim().isEmpty()) {
+                nickErrorLabel.setVisible(true);
+                nickErrorLabel.setManaged(true);
+                return;
+            }
+            nickErrorLabel.setVisible(false);
+            nickErrorLabel.setManaged(false);
             int count = rb4.isSelected() ? 4 : 2;
             if (onCreateLobby != null) onCreateLobby.accept(count);
         });
-        joinBtn.setOnAction(e -> showJoinInputPanel());
+        joinBtn.setOnAction(e -> {
+            if (nicknameField.getText().trim().isEmpty()) {
+                nickErrorLabel.setVisible(true);
+                nickErrorLabel.setManaged(true);
+                return;
+            }
+            nickErrorLabel.setVisible(false);
+            nickErrorLabel.setManaged(false);
+            showJoinInputPanel();
+        });
         backBtn.setOnAction(e -> { if (onBack != null) onBack.run(); });
-
-        Label nickLabel = styled("Your nickname:", 7);
-        nickLabel.setStyle(nickLabel.getStyle() + " -fx-text-fill: #aaffaa;");
 
         HBox btnRow = new HBox(20, createBtn, joinBtn, backBtn);
         btnRow.setAlignment(Pos.CENTER);
 
-        panel.getChildren().addAll(title, sub, modeBox, nickLabel, nicknameField, btnRow);
+        panel.getChildren().addAll(title, sub, modeBox, nickLabel, nicknameField, nickErrorLabel, btnRow);
         return panel;
     }
 
-    /** Returns the trimmed nickname, capped at 16 chars, defaulting to "Player". */
     public String getNickname() {
         String s = nicknameField.getText().trim();
         if (s.isEmpty()) return "Player";
@@ -173,12 +196,12 @@ public class LobbyView {
     }
 
     // -----------------------------------------------------------------------
-    // Panel 1b — Join: enter code only (IP auto-discovered via LAN broadcast)
+    // Panel 1b — Join: enter code
     // -----------------------------------------------------------------------
 
     private void showJoinInputPanel() {
         joinCodeField = styledField("Lobby Code (" + GameConfig.LOBBY_CODE_LENGTH + " chars)");
-        joinStatusLabel = styled("Enter the 6-character lobby code.", 7);
+        joinStatusLabel = styled("Enter the lobby code.", 7);
         joinStatusLabel.setStyle(joinStatusLabel.getStyle() + " -fx-text-fill: #aaffaa;");
 
         joinConnectBtn = menuBtn("CONNECT");
@@ -201,16 +224,10 @@ public class LobbyView {
         btnRow.setAlignment(Pos.CENTER);
 
         VBox panel = centeredPanel(400);
-        panel.getChildren().addAll(
-                styled("JOIN LOBBY", 13),
-                joinStatusLabel,
-                joinCodeField,
-                btnRow);
-
+        panel.getChildren().addAll(styled("JOIN LOBBY", 13), joinStatusLabel, joinCodeField, btnRow);
         contentPane.getChildren().setAll(panel);
     }
 
-    /** Update the join panel status (e.g. on discovery failure). Re-enables input on error. */
     public void setJoinStatus(String msg) {
         if (joinStatusLabel == null) return;
         joinStatusLabel.setText(msg);
@@ -225,14 +242,6 @@ public class LobbyView {
     // Panel 2 — Host waiting room
     // -----------------------------------------------------------------------
 
-    /**
-     * Called by App after the server is started and the host's GameClient is connected.
-     *
-     * @param code       lobby code to display
-     * @param ips        comma-separated LAN IPs to display
-     * @param required   total players needed
-     * @param hostClient used for sending chat messages
-     */
     public void showHostLobby(String code, String ips, int required, GameClient hostClient) {
         this.currentClient = hostClient;
         chatArea.clear();
@@ -245,11 +254,8 @@ public class LobbyView {
         startBtn.setOnAction(e -> { if (onStartGame != null) onStartGame.run(); });
 
         Button cancelBtn = menuBtn("CANCEL");
-        cancelBtn.setOnAction(e -> {
-            if (onLeave != null) onLeave.run();
-        });
+        cancelBtn.setOnAction(e -> { if (onLeave != null) onLeave.run(); });
 
-        // Code + IP display
         Label codeLbl = styled("Code: " + code, 11);
         codeLbl.setStyle(codeLbl.getStyle() + " -fx-text-fill: #ffee44;");
 
@@ -258,7 +264,7 @@ public class LobbyView {
         ipLabel.setTextAlignment(TextAlignment.CENTER);
         ipLabel.setStyle(ipLabel.getStyle() + " -fx-text-fill: #aaccff;");
 
-        Label ipHint = styled("Share one of these IPs with players on your network", 6);
+        Label ipHint = styled("Share your IP with players on the same network", 6);
         ipHint.setStyle(ipHint.getStyle() + " -fx-text-fill: #668844;");
         ipHint.setWrapText(true);
         ipHint.setTextAlignment(TextAlignment.CENTER);
@@ -266,11 +272,12 @@ public class LobbyView {
         HBox btnRow = new HBox(20, cancelBtn, startBtn);
         btnRow.setAlignment(Pos.CENTER);
 
-        VBox panel = centeredPanel(500);
+        VBox panel = centeredPanel(520);
         panel.getChildren().addAll(
                 styled("LOBBY CREATED", 13),
                 codeLbl, ipLabel, ipHint,
                 playerCountLabel,
+                rosterSection,
                 buildChatBox(),
                 btnRow);
 
@@ -281,11 +288,6 @@ public class LobbyView {
     // Panel 3 — Join waiting room
     // -----------------------------------------------------------------------
 
-    /**
-     * Called by App after the joiner's GameClient has connected (WAITING status).
-     *
-     * @param client the connected client, used for sending chat
-     */
     public void showJoinWaiting(GameClient client) {
         this.currentClient = client;
         chatArea.clear();
@@ -298,11 +300,12 @@ public class LobbyView {
         Button leaveBtn = menuBtn("LEAVE");
         leaveBtn.setOnAction(e -> { if (onLeave != null) onLeave.run(); });
 
-        VBox panel = centeredPanel(500);
+        VBox panel = centeredPanel(520);
         panel.getChildren().addAll(
                 styled("IN LOBBY", 13),
                 statusLbl,
                 playerCountLabel,
+                rosterSection,
                 buildChatBox(),
                 leaveBtn);
 
@@ -310,16 +313,14 @@ public class LobbyView {
     }
 
     // -----------------------------------------------------------------------
-    // External update methods (called from App via Platform.runLater)
+    // External update methods
     // -----------------------------------------------------------------------
 
-    /** Update the player count label, e.g. "2/4". */
     public void updatePlayerCount(String countStr) {
         if (playerCountLabel != null)
             playerCountLabel.setText("Players: " + countStr);
     }
 
-    /** Enable the START button once all players are connected (host only). */
     public void enableStart() {
         if (startBtn != null) {
             startBtn.setDisable(false);
@@ -327,13 +328,92 @@ public class LobbyView {
         }
     }
 
-    /** Append a line to the chat area. */
+    public void disableStart() {
+        if (startBtn != null) {
+            startBtn.setDisable(true);
+            if (!startBtn.getStyle().contains("-fx-opacity: 0.5;"))
+                startBtn.setStyle(startBtn.getStyle() + " -fx-opacity: 0.5;");
+        }
+    }
+
     public void appendChat(String line) {
         chatArea.appendText(line + "\n");
     }
 
+    /**
+     * Rebuilds the team roster panel.
+     * Only visible for 4P lobbies (required == 4).
+     *
+     * @param mySlot   local player's connection slot (1-4)
+     * @param names    slot-indexed nicknames (index 1-4)
+     * @param teams    slot-indexed team choices: 0=unset, 1=Team1, 2=Team2
+     * @param required total players needed (roster shown only when == 4)
+     */
+    public void updateRoster(int mySlot, String[] names, int[] teams, int required) {
+        if (required != 4) {
+            rosterSection.setVisible(false);
+            rosterSection.setManaged(false);
+            return;
+        }
+        rosterSection.setVisible(true);
+        rosterSection.setManaged(true);
+        rosterSection.getChildren().setAll(buildRosterRows(mySlot, names, teams));
+    }
+
+    private List<javafx.scene.Node> buildRosterRows(int mySlot, String[] names, int[] teams) {
+        List<javafx.scene.Node> rows = new ArrayList<>();
+
+        Label header = styled("TEAM SELECTION", 8);
+        header.setStyle(header.getStyle() + " -fx-text-fill: #ffee44;");
+        rows.add(header);
+
+        Separator sep = new Separator();
+        sep.setStyle("-fx-background-color: #334a22;");
+        rows.add(sep);
+
+        for (int slot = 1; slot <= 4; slot++) {
+            String name  = (names != null && names.length > slot && names[slot] != null)
+                           ? names[slot] : "(waiting...)";
+            int team     = (teams != null && teams.length > slot) ? teams[slot] : 0;
+            boolean isMe = (slot == mySlot);
+
+            // Name label — green if Team 1, red if Team 2, grey if unset
+            String nameColor = team == 1 ? "#88ff88" : team == 2 ? "#ff8888" : "#aaaaaa";
+            Label nameLbl = styled("#" + slot + "  " + name, 8);
+            nameLbl.setMinWidth(200);
+            nameLbl.setStyle(nameLbl.getStyle() + " -fx-text-fill: " + nameColor + ";");
+
+            javafx.scene.Node teamWidget;
+            if (isMe) {
+                Button t1Btn = menuBtn("TEAM 1");
+                Button t2Btn = menuBtn("TEAM 2");
+                // Highlight selected team button
+                if (team == 1) t1Btn.setStyle(t1Btn.getStyle() + " -fx-text-fill: #88ff88;");
+                if (team == 2) t2Btn.setStyle(t2Btn.getStyle() + " -fx-text-fill: #ff8888;");
+                t1Btn.setOnAction(e -> { if (onTeamSelect != null) onTeamSelect.accept(1); });
+                t2Btn.setOnAction(e -> { if (onTeamSelect != null) onTeamSelect.accept(2); });
+                HBox btns = new HBox(8, t1Btn, t2Btn);
+                btns.setAlignment(Pos.CENTER_LEFT);
+                teamWidget = btns;
+            } else {
+                String teamStr  = team == 1 ? "TEAM 1" : team == 2 ? "TEAM 2" : "—";
+                String teamColor = team == 1 ? "#88ff88" : team == 2 ? "#ff8888" : "#666666";
+                Label tl = styled(teamStr, 8);
+                tl.setStyle(tl.getStyle() + " -fx-text-fill: " + teamColor + ";");
+                teamWidget = tl;
+            }
+
+            HBox row = new HBox(16, nameLbl, teamWidget);
+            row.setAlignment(Pos.CENTER_LEFT);
+            row.setPadding(new Insets(2, 0, 2, 0));
+            rows.add(row);
+        }
+
+        return rows;
+    }
+
     // -----------------------------------------------------------------------
-    // Chat widget
+    // Chat
     // -----------------------------------------------------------------------
 
     private VBox buildChatBox() {
@@ -366,21 +446,27 @@ public class LobbyView {
     // -----------------------------------------------------------------------
 
     private VBox centeredPanel(double maxW) {
-        VBox panel = new VBox(16);
+        VBox panel = new VBox(14);
         panel.setAlignment(Pos.CENTER);
         panel.setMaxWidth(maxW);
-        panel.setPadding(new Insets(28, 32, 28, 32));
+        panel.setPadding(new Insets(28, 36, 28, 36));
         panel.setFillWidth(true);
         panel.setStyle(
-                "-fx-background-color: #1a3a0a;" +
-                "-fx-border-color: #ffee88 #aa8800 #aa8800 #ffee88;" +
-                "-fx-border-width: 3;");
+                "-fx-background-color: rgba(8, 20, 4, 0.88);" +
+                "-fx-border-color: #ffee44;" +
+                "-fx-border-width: 0 0 0 3;");
         return panel;
     }
 
     private Label styled(String text, int sizePx) {
         Label l = new Label(text);
         l.setStyle(baseStyle(sizePx));
+        if (sizePx >= 10) {
+            javafx.scene.effect.DropShadow ds = new javafx.scene.effect.DropShadow();
+            ds.setColor(javafx.scene.paint.Color.web("#1c5a1a"));
+            ds.setOffsetX(3); ds.setOffsetY(3); ds.setRadius(0);
+            l.setEffect(ds);
+        }
         return l;
     }
 
@@ -390,11 +476,12 @@ public class LobbyView {
 
     private Button menuBtn(String text) {
         Button b = new Button(text);
-        String base = "-fx-font-family: " + pf + "; -fx-font-size: 8px; -fx-text-fill: white;" +
-                      "-fx-background-color: #2a5a1a; -fx-cursor: hand; -fx-padding: 8 16 8 16;";
+        String base = "-fx-font-family: " + pf + "; -fx-font-size: 10px; -fx-text-fill: white;" +
+                      "-fx-background-color: transparent; -fx-cursor: hand; -fx-padding: 8 16 8 16;";
         b.setStyle(base);
-        b.setOnMouseEntered(e -> b.setStyle(base.replace("#2a5a1a", "#3a8a2a")));
+        b.setOnMouseEntered(e -> b.setStyle(base.replace("-fx-text-fill: white;", "-fx-text-fill: #ffee44;")));
         b.setOnMouseExited(e  -> b.setStyle(base));
+        b.setOnMousePressed(e -> AudioManager.getInstance().playClick());
         return b;
     }
 
@@ -411,8 +498,8 @@ public class LobbyView {
         tf.setMaxWidth(340);
         tf.setStyle(
                 "-fx-font-family: " + pf + "; -fx-font-size: 8px;" +
-                "-fx-background-color: #0d2208; -fx-text-fill: white;" +
-                "-fx-prompt-text-fill: #4a7744;");
+                "-fx-background-color: #0a1a06; -fx-text-fill: white;" +
+                "-fx-prompt-text-fill: #669966;");
         return tf;
     }
 }

@@ -231,8 +231,7 @@ public class App extends Application {
      */
     private void createLobby(int playerCount) {
         try {
-            GameServer server = new GameServer(playerCount,
-                    () -> Platform.runLater(this::showMainMenu));
+            GameServer server = new GameServer(playerCount, null); // client-side game-over card handles navigation
             server.startAccepting();
             activeServer = server;
 
@@ -246,6 +245,9 @@ public class App extends Application {
                     chat   -> Platform.runLater(() -> { if (lobbyView != null) lobbyView.appendChat(chat); }));
             activeClient = hostClient;
             hostClient.connect();
+
+            lobbyView.setOnTeamSelect(team -> { if (activeClient != null) activeClient.sendTeamSelect(team); });
+            hostClient.setOnRosterUpdate(() -> Platform.runLater(() -> updateLobbyRoster(hostClient)));
 
             lobbyView.showHostLobby(server.getLobbyCode(), server.getHostIps(),
                     playerCount, hostClient);
@@ -275,6 +277,8 @@ public class App extends Application {
                         chat  -> Platform.runLater(() -> { if (lobbyView != null) lobbyView.appendChat(chat); }));
                 activeClient = client;
                 client.connect();
+                lobbyView.setOnTeamSelect(team -> { if (activeClient != null) activeClient.sendTeamSelect(team); });
+                client.setOnRosterUpdate(() -> Platform.runLater(() -> updateLobbyRoster(activeClient)));
             }),
             () -> Platform.runLater(() -> {
                 if (lobbyView != null)
@@ -294,13 +298,25 @@ public class App extends Application {
         showMainMenu();
     }
 
+    private void updateLobbyRoster(GameClient client) {
+        if (lobbyView == null || client == null) return;
+        String[] names = new String[5];
+        int[] teams = new int[5];
+        for (int slot = 1; slot <= 4; slot++) {
+            names[slot] = client.getSlotName(slot);
+            teams[slot] = client.getKnownTeam(slot);
+        }
+        lobbyView.updateRoster(client.getMySlotId(), names, teams, client.getLobbyRequired());
+    }
+
     /** Handles GameClient status changes from both host and joining clients. */
     private void handleClientStatus(GameClient.Status status) {
         switch (status) {
             case CAN_START -> { if (lobbyView != null) lobbyView.enableStart(); }
+            case WAITING   -> { if (lobbyView != null) lobbyView.disableStart(); }
             case IN_GAME   -> startOnlineGame(activeClient);
             case ERROR     -> stopOnlineGameAndReturnToMenu();
-            default        -> {} // CONNECTING, WAITING handled by LobbyView callbacks
+            default        -> {}
         }
     }
 
@@ -386,6 +402,9 @@ public class App extends Application {
         StackPane.setAlignment(hudStack, Pos.BOTTOM_CENTER);
 
         GameRenderer renderer = new GameRenderer(gc, myTeamId);
+        String[] pidNames = new String[5];
+        for (int pid = 1; pid <= 4; pid++) pidNames[pid] = client.getPlayerName(pid);
+        renderer.setPlayerNames(pidNames);
         HUDRenderer hudRenderer = new HUDRenderer(
                 p1CD, p1Score, p1NextV, p1NextN, p1Hint,
                 p2CD, p2Score, p2NextV, p2NextN, p2Hint,
