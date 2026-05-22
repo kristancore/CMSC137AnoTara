@@ -87,19 +87,17 @@ public class MenuView {
             if (raysIs != null) {
                 ImageView raysView = new ImageView(new Image(raysIs));
                 raysView.setPreserveRatio(true);
-                // Make it significantly larger than the screen dimensions to cover everything seamlessly during rotation
                 double size = Math.max(GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT) * 1.5;
                 raysView.setFitWidth(size);
                 raysView.setFitHeight(size);
-                
-                // Slow rotation animation for premium feel
+
                 javafx.animation.RotateTransition rt = new javafx.animation.RotateTransition(
                         javafx.util.Duration.seconds(40), raysView);
                 rt.setByAngle(360);
                 rt.setCycleCount(javafx.animation.Animation.INDEFINITE);
                 rt.setInterpolator(javafx.animation.Interpolator.LINEAR);
                 rt.play();
-                
+
                 root.getChildren().add(raysView);
             }
 
@@ -117,126 +115,28 @@ public class MenuView {
     }
 
     private void setupBackground(StackPane root, boolean showGrass) {
-        setupBackground(root, showGrass, showGrass);
+        setupBackground(root, showGrass, showGrass, "/ui/background.png");
     }
 
     private void setupBackground(StackPane root, boolean showGrass, boolean showClouds) {
+        setupBackground(root, showGrass, showClouds, "/ui/background.png");
+    }
+
+    private void setupBackground(StackPane root, boolean showGrass, boolean showClouds, String bgImagePath) {
         try {
-            java.io.InputStream is = getClass().getResourceAsStream("/ui/background.png");
+            java.io.InputStream is = getClass().getResourceAsStream(bgImagePath);
             if (is != null) {
                 Image bgImage = new Image(is);
                 BackgroundImage backgroundImage = new BackgroundImage(bgImage,
                         BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT,
                         BackgroundPosition.CENTER,
-                        new BackgroundSize(100, 100, true, true, false, false));
+                        new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, false, true));
                 root.setBackground(new Background(backgroundImage));
             } else {
                 root.setStyle("-fx-background-color: #55b4ff;");
             }
         } catch (Exception e) {
             root.setStyle("-fx-background-color: #55b4ff;");
-        }
-
-        Pane animPane = new Pane();
-        root.getChildren().add(animPane);
-
-        addGlitters(animPane);
-
-        if (showGrass) {
-            if (showClouds) {
-                try {
-                    java.io.InputStream is1 = getClass().getResourceAsStream("/ui/clouds.gif");
-                    java.io.InputStream is2 = getClass().getResourceAsStream("/ui/clouds.gif");
-                    if (is1 != null && is2 != null) {
-                        Image cloudsImg1 = new Image(is1);
-                        Image cloudsImg2 = new Image(is2);
-
-                        ImageView cloudsView1 = new ImageView(cloudsImg1);
-                        ImageView cloudsView2 = new ImageView(cloudsImg2);
-
-                        double cloudW = GameConfig.WINDOW_WIDTH;
-                        for (ImageView cv : new ImageView[] { cloudsView1, cloudsView2 }) {
-                            cv.setPreserveRatio(true);
-                            cv.fitWidthProperty().bind(root.widthProperty());
-                        }
-
-                        cloudsView1.setTranslateX(0);
-                        cloudsView2.setTranslateX(cloudW);
-
-                        StackPane.setAlignment(cloudsView1, Pos.TOP_LEFT);
-                        StackPane.setAlignment(cloudsView2, Pos.TOP_LEFT);
-                        root.getChildren().addAll(cloudsView1, cloudsView2);
-
-                        double[] offset = { 0 };
-                        double speed = 0.50;
-                        long[] lastTime = { -1 };
-
-                        javafx.animation.AnimationTimer cloudTimer = new javafx.animation.AnimationTimer() {
-                            @Override
-                            public void handle(long now) {
-                                if (lastTime[0] < 0) {
-                                    lastTime[0] = now;
-                                    return;
-                                }
-                                double delta = (now - lastTime[0]) / 1_000_000_000.0;
-                                lastTime[0] = now;
-                                offset[0] -= speed * delta;
-                                if (offset[0] <= -cloudW)
-                                    offset[0] += cloudW;
-                                cloudsView1.setTranslateX(offset[0]);
-                                cloudsView2.setTranslateX(offset[0] + cloudW);
-                            }
-                        };
-                        cloudTimer.start();
-                    }
-                } catch (Exception e) {
-                }
-            }
-
-            ImageView grasslandView = null;
-            try {
-                java.io.InputStream is = getClass().getResourceAsStream("/ui/grassland.png");
-                if (is != null) {
-                    Image grasslandImg = new Image(is);
-                    grasslandView = new ImageView(grasslandImg);
-                    grasslandView.setPreserveRatio(true);
-                    grasslandView.fitWidthProperty().bind(root.widthProperty());
-
-                    StackPane.setAlignment(grasslandView, Pos.BOTTOM_CENTER);
-                    root.getChildren().add(grasslandView);
-                }
-            } catch (Exception e) {
-            }
-
-            try {
-                java.io.InputStream is = getClass().getResourceAsStream("/ui/grass.png");
-                if (is != null) {
-                    Image grassImg = new Image(is);
-
-                    ImageView bush1 = new ImageView(grassImg);
-                    bush1.setPreserveRatio(true);
-                    bush1.setFitWidth(250);
-                    StackPane.setAlignment(bush1, Pos.BOTTOM_LEFT);
-
-                    ImageView bush2 = new ImageView(grassImg);
-                    bush2.setPreserveRatio(true);
-                    bush2.setFitWidth(200);
-                    StackPane.setAlignment(bush2, Pos.BOTTOM_RIGHT);
-
-                    root.widthProperty().addListener((obs, oldVal, newVal) -> {
-                        double currentGroundHeight = 161.0 * (newVal.doubleValue() / 834.0);
-                        StackPane.setMargin(bush1, new Insets(0, 0, currentGroundHeight - 10, 50));
-                        StackPane.setMargin(bush2, new Insets(0, 50, currentGroundHeight - 10, 0));
-                    });
-
-                    double initialGroundHeight = 161.0 * (GameConfig.WINDOW_WIDTH / 834.0);
-                    StackPane.setMargin(bush1, new Insets(0, 0, initialGroundHeight - 10, 50));
-                    StackPane.setMargin(bush2, new Insets(0, 50, initialGroundHeight - 10, 0));
-
-                    root.getChildren().addAll(bush1, bush2);
-                }
-            } catch (Exception e) {
-            }
         }
     }
 
@@ -255,7 +155,7 @@ public class MenuView {
         }
         titleView.setPreserveRatio(true);
         titleView.setFitWidth(650);
-        titleView.setTranslateY(-90);
+        titleView.setTranslateY(-150);
         StackPane.setAlignment(titleView, Pos.CENTER);
 
         javafx.animation.TranslateTransition ttTitle = new javafx.animation.TranslateTransition(
@@ -266,29 +166,31 @@ public class MenuView {
         ttTitle.setInterpolator(javafx.animation.Interpolator.EASE_BOTH);
         ttTitle.play();
 
-        VBox buttonBox = new VBox(20);
+        VBox buttonBox = new VBox(15);
         buttonBox.setAlignment(Pos.BOTTOM_CENTER);
-        buttonBox.setPadding(new Insets(0, 0, 60, 0));
+        buttonBox.setPadding(new Insets(0, 0, 45, 0));
 
-        Button creditsBtn = createMenuButton("CREDITS");
-        Button startBtn = createMenuButton("START");
-        Button rulesBtn = createMenuButton("RULES");
-
-        startBtn.setOnAction(e -> {
+        Button startBtn = createImageButton("/ui/menu-start.png", "/ui/menu-start-selected.png", () -> {
             if (onStartGame != null)
                 onStartGame.run();
         });
-        creditsBtn.setOnAction(e -> {
-            if (onSetScene != null)
-                onSetScene.accept(creditsScene1);
+
+        Button onlineBtn = createImageButton("/ui/menu-online.png", "/ui/menu-online-selected.png", () -> {
+            if (onPlayOnline != null)
+                onPlayOnline.run();
         });
-        rulesBtn.setOnAction(e -> {
-            updateEmptySceneTitle("RULES");
+
+        Button rulesBtn = createImageButton("/ui/menu-tutorial.png", "/ui/menu-tutorial-selected.png", () -> {
             if (onSetScene != null)
                 onSetScene.accept(rulesScenes[0]);
         });
 
-        buttonBox.getChildren().addAll(creditsBtn, startBtn, rulesBtn);
+        Button creditsBtn = createImageButton("/ui/menu-credits.png", "/ui/menu-credits-selected.png", () -> {
+            if (onSetScene != null)
+                onSetScene.accept(creditsScene1);
+        });
+
+        buttonBox.getChildren().addAll(startBtn, onlineBtn, rulesBtn, creditsBtn);
         StackPane.setAlignment(buttonBox, Pos.BOTTOM_CENTER);
 
         root.getChildren().addAll(titleView, buttonBox);
@@ -299,41 +201,40 @@ public class MenuView {
     private void createCreditsScenes() {
         String page1Text =
             "Sa Kabukiran is inspired by Khan Kluay (2006), Thailand's first 3D computer-animated film.\n\n" +
-            "This game was created as a final project for CMSC 137 — Data Communications and Networking, " +
-            "Second Semester, A.Y. 2025–2026.";
+            "This game was developed by Jeoff Nathaniel M. Conde, John Michael Magpantay, " +
+            "and Kristan Louie Escarilla, created as a final project for CMSC 137 — Data Communications and Networking, " +
+            "Second Semester, A.Y. 2025–2026. Built using Java 21 and JavaFX 21 (OpenJFX).";
 
-        String page2Text =
-            "Developed by Jeoff Nathaniel M. Conde, John Michael Magpantay, and Kristan Louie Escarilla.\n\n" +
-            "Built using Java 21 and JavaFX 21 (OpenJFX).";
-
-        creditsScene1 = createPagedScene("credits", page1Text, null, null, "NEXT", () -> {
-            if (onSetScene != null)
-                onSetScene.accept(creditsScene2);
-        });
-
-        creditsScene2 = createPagedScene("credits", page2Text, "PREVIOUS", () -> {
-            if (onSetScene != null)
-                onSetScene.accept(creditsScene1);
-        }, null, null);
+        creditsScene1 = createPagedScene("credits", page1Text, null, null, null, null);
     }
 
     private Scene createPagedScene(String titleText, String contentText, String leftBtnText, Runnable leftBtnAction,
             String rightBtnText, Runnable rightBtnAction) {
         StackPane root = new StackPane();
-        setupBackground(root, true);
+        setupBackground(root, true, true, "/ui/credits-background.png");
 
         VBox contentBox = new VBox(40);
         contentBox.setAlignment(Pos.TOP_CENTER);
-        contentBox.setPadding(new Insets(120, 50, 0, 50));
+        contentBox.setPadding(new Insets(250, 50, 0, 50));
 
-        Label title = new Label(titleText.toLowerCase());
-        title.setStyle("-fx-font-family: " + fontFam + "; -fx-font-size: 50px; -fx-text-fill: white;");
         javafx.scene.effect.DropShadow shadow = new javafx.scene.effect.DropShadow();
         shadow.setColor(javafx.scene.paint.Color.web("#1c5a8a"));
         shadow.setOffsetX(4);
         shadow.setOffsetY(4);
         shadow.setRadius(0);
-        title.setEffect(shadow);
+
+        javafx.scene.Node titleNode;
+        if (titleText.equalsIgnoreCase("credits")) {
+            ImageView iv = new ImageView(new Image(getClass().getResourceAsStream("/ui/menu-credits.png")));
+            iv.setPreserveRatio(true);
+            iv.setFitHeight(40);
+            titleNode = iv;
+        } else {
+            Label title = new Label(titleText.toLowerCase());
+            title.setStyle("-fx-font-family: " + fontFam + "; -fx-font-size: 50px; -fx-text-fill: white;");
+            title.setEffect(shadow);
+            titleNode = title;
+        }
 
         Label content = new Label(contentText);
         content.setStyle(
@@ -343,20 +244,18 @@ public class MenuView {
         content.setMaxWidth(780);
         content.setEffect(shadow);
 
-        contentBox.getChildren().addAll(title, content);
+        contentBox.getChildren().addAll(titleNode, content);
 
         StackPane buttonLayout = new StackPane();
         buttonLayout.setPadding(new Insets(0, 50, 40, 50));
 
         if (leftBtnText != null) {
-            Button leftBtn = createMenuButton(leftBtnText);
-            leftBtn.setOnAction(e -> leftBtnAction.run());
+            Button leftBtn = createImageButton("/ui/previous-button.png", "/ui/previous-button-selected.png", () -> leftBtnAction.run());
             StackPane.setAlignment(leftBtn, Pos.BOTTOM_LEFT);
             buttonLayout.getChildren().add(leftBtn);
         }
 
-        Button mainMenuBtn = createMenuButton("MAIN MENU");
-        mainMenuBtn.setOnAction(e -> {
+        Button mainMenuBtn = createImageButton("/ui/return-to-menu-button.png", "/ui/return-to-menu-button-selected.png", () -> {
             if (onSetScene != null)
                 onSetScene.accept(mainMenuScene);
         });
@@ -364,8 +263,7 @@ public class MenuView {
         buttonLayout.getChildren().add(mainMenuBtn);
 
         if (rightBtnText != null) {
-            Button rightBtn = createMenuButton(rightBtnText);
-            rightBtn.setOnAction(e -> rightBtnAction.run());
+            Button rightBtn = createImageButton("/ui/next-button.png", "/ui/next-button-selected.png", () -> rightBtnAction.run());
             StackPane.setAlignment(rightBtn, Pos.BOTTOM_RIGHT);
             buttonLayout.getChildren().add(rightBtn);
         }
@@ -479,30 +377,39 @@ public class MenuView {
             "The deploy cooldown is slashed to 1 second.\n\n" +
             "The first player to score 1 point wins!";
 
-        rulesScenes[0] = buildRulesPage("rules",    null,      buildRulesTextNode(p1),                                         0);
-        rulesScenes[1] = buildRulesPage("chicken",  "animals", buildRulesAnimalNode("/chicken/right_1_chicken_walk.png", p2),   1);
-        rulesScenes[2] = buildRulesPage("pig",      null,      buildRulesAnimalNode("/pig/right_1_pig_walk.png",         p3),   2);
-        rulesScenes[3] = buildRulesPage("cow",      null,      buildRulesAnimalNode("/cow/right_1_cow_walk.png",         p4),   3);
-        rulesScenes[4] = buildRulesPage("sheep",    null,      buildRulesAnimalNode("/sheep/right_1_sheep_walk.png",     p5),   4);
-        rulesScenes[5] = buildRulesPage("llama",    null,      buildRulesAnimalNode("/llama/right_1_llama_walk.png",     p6),   5);
-        rulesScenes[6] = buildRulesPage("how to play", null,   buildRulesTextNode(p7),                                         6);
-        rulesScenes[7] = buildRulesPage("sudden death", null,  buildRulesTextNode(p8),                                         7);
+        rulesScenes[0] = buildRulesPage("rules",       null,      buildRulesTextNode(p1),                                       0);
+        rulesScenes[1] = buildRulesPage("chicken",  "animals", buildRulesAnimalNode("/chicken/right_1_chicken_walk.png", p2), 1);
+        rulesScenes[2] = buildRulesPage("pig",         null,      buildRulesAnimalNode("/pig/right_1_pig_walk.png",       p3),   2);
+        rulesScenes[3] = buildRulesPage("cow",         null,      buildRulesAnimalNode("/cow/right_1_cow_walk.png",       p4),   3);
+        rulesScenes[4] = buildRulesPage("sheep",       null,      buildRulesAnimalNode("/sheep/right_1_sheep_walk.png",   p5),   4);
+        rulesScenes[5] = buildRulesPage("llama",       null,      buildRulesAnimalNode("/llama/right_1_llama_walk.png",   p6),   5);
+        rulesScenes[6] = buildRulesPage("how to play", null,      buildRulesTextNode(p7),                                       6);
+        rulesScenes[7] = buildRulesPage("sudden death", null,     buildRulesTextNode(p8),                                       7);
     }
 
     private Scene buildRulesPage(String titleText, String subtitle, javafx.scene.Node contentNode, int idx) {
         StackPane root = new StackPane();
-        setupBackground(root, true, false);
+        setupBackground(root, true, false, "/ui/tutorial-background.png");
 
         VBox contentBox = new VBox(20);
         contentBox.setAlignment(Pos.TOP_LEFT);
-        contentBox.setPadding(new Insets(100, 60, 0, 60));
+        contentBox.setPadding(new Insets(250, 60, 0, 60));
 
         javafx.scene.effect.DropShadow shadow = makeDropShadow();
 
-        Label title = new Label(titleText.toLowerCase());
-        title.setStyle("-fx-font-family: " + fontFam + "; -fx-font-size: 50px; -fx-text-fill: white;");
-        title.setEffect(shadow);
-        contentBox.getChildren().add(title);
+        javafx.scene.Node titleNode;
+        if (titleText.equalsIgnoreCase("rules")) {
+            ImageView iv = new ImageView(new Image(getClass().getResourceAsStream("/ui/menu-tutorial.png")));
+            iv.setPreserveRatio(true);
+            iv.setFitHeight(40);
+            titleNode = iv;
+        } else {
+            Label title = new Label(titleText.toLowerCase());
+            title.setStyle("-fx-font-family: " + fontFam + "; -fx-font-size: 50px; -fx-text-fill: white;");
+            title.setEffect(shadow);
+            titleNode = title;
+        }
+        contentBox.getChildren().add(titleNode);
 
         if (subtitle != null) {
             Label sub = new Label(subtitle.toUpperCase());
@@ -517,20 +424,17 @@ public class MenuView {
         buttonLayout.setPadding(new Insets(0, 50, 40, 50));
 
         if (idx > 0) {
-            Button prevBtn = createMenuButton("PREVIOUS");
-            prevBtn.setOnAction(e -> { if (onSetScene != null) onSetScene.accept(rulesScenes[idx - 1]); });
+            Button prevBtn = createImageButton("/ui/previous-button.png", "/ui/previous-button-selected.png", () -> { if (onSetScene != null) onSetScene.accept(rulesScenes[idx - 1]); });
             StackPane.setAlignment(prevBtn, Pos.BOTTOM_LEFT);
             buttonLayout.getChildren().add(prevBtn);
         }
 
-        Button mainMenuBtn = createMenuButton("MAIN MENU");
-        mainMenuBtn.setOnAction(e -> { if (onSetScene != null) onSetScene.accept(mainMenuScene); });
+        Button mainMenuBtn = createImageButton("/ui/return-to-menu-button.png", "/ui/return-to-menu-button-selected.png", () -> { if (onSetScene != null) onSetScene.accept(mainMenuScene); });
         StackPane.setAlignment(mainMenuBtn, Pos.BOTTOM_CENTER);
         buttonLayout.getChildren().add(mainMenuBtn);
 
         if (idx < rulesScenes.length - 1) {
-            Button nextBtn = createMenuButton("NEXT");
-            nextBtn.setOnAction(e -> { if (onSetScene != null) onSetScene.accept(rulesScenes[idx + 1]); });
+            Button nextBtn = createImageButton("/ui/next-button.png", "/ui/next-button-selected.png", () -> { if (onSetScene != null) onSetScene.accept(rulesScenes[idx + 1]); });
             StackPane.setAlignment(nextBtn, Pos.BOTTOM_RIGHT);
             buttonLayout.getChildren().add(nextBtn);
         }
@@ -598,7 +502,6 @@ public class MenuView {
                 "-fx-font-family: " + fontFam
                         + "; -fx-font-size: 18px; -fx-text-fill: white; -fx-background-color: transparent; -fx-cursor: hand;"));
 
-        // Play click SFX on every button press
         btn.setOnMousePressed(e -> AudioManager.getInstance().playClick());
 
         return btn;

@@ -20,7 +20,7 @@ public class GameRenderer {
     }
 
     public void draw(GameState state) {
-        gc.clearRect(0, 0, GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT);
+        gc.clearRect(0, 0, GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT);
 
         boolean flip = myTeamId == 2;
         if (flip) {
@@ -31,19 +31,12 @@ public class GameRenderer {
         // Background
         javafx.scene.image.Image bgImage = SpriteManager.getBackgroundImage();
         if (bgImage != null) {
-            gc.drawImage(bgImage, 0, 0, GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT);
+            gc.drawImage(bgImage, 0, 0, GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT);
         } else {
             gc.setFill(Color.web("#87CEEB"));
-            gc.fillRect(0, 0, GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT);
+            gc.fillRect(0, 0, GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT);
         }
 
-        // Lane dividers
-        gc.setStroke(Color.rgb(0, 0, 0, 0.18));
-        gc.setLineWidth(1.5);
-        for (int i = 1; i < GameConfig.NUM_LANES; i++) {
-            double y = i * GameConfig.LANE_HEIGHT;
-            gc.strokeLine(0, y, GameConfig.WINDOW_WIDTH, y);
-        }
 
         boolean is4P = state.getMode() == GameState.GameMode.ONLINE_4P;
 

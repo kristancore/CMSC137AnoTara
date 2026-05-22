@@ -55,10 +55,10 @@ public class SpriteManager {
         }
         // load the bg pic
         try {
-            Image bg = new Image(SpriteManager.class.getResourceAsStream("/ui/background.png"));
+            Image bg = new Image(SpriteManager.class.getResourceAsStream("/ui/game-background.png"));
             imageCache.put("background", bg);
         } catch (Exception e) {
-            System.err.println("Failed to load background sprite: /ui/background.png");
+            System.err.println("Failed to load background sprite: /ui/game-background.png");
         }
     }
 
@@ -81,3 +81,4 @@ public class SpriteManager {
         return animalName + "_" + direction + "_" + frame;
     }
 }
+
