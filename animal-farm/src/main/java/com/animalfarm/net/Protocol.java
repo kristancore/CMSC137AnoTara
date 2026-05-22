@@ -31,6 +31,7 @@ public final class Protocol {
     public static final String CMD_CHAT        = "CHAT";
     public static final String CMD_NICK        = "NICK";
     public static final String CMD_PING        = "PING";
+    public static final String CMD_TEAM_SELECT = "TEAM_SELECT";
 
     // Server → Client
     public static final String MSG_LOBBY_OK      = "LOBBY_OK";
@@ -42,6 +43,7 @@ public final class Protocol {
     public static final String MSG_STATE         = "STATE";
     public static final String MSG_GAME_OVER     = "GAME_OVER";
     public static final String MSG_ERROR         = "ERROR";
+    public static final String MSG_TEAM_ROSTER   = "TEAM_ROSTER";
 
     // -----------------------------------------------------------------------
     // Builders
@@ -65,6 +67,20 @@ public final class Protocol {
 
     public static String start(int playerCount) {
         return MSG_START + " " + playerCount;
+    }
+
+    /** 4P start — args[1..4] = game PID assigned to connection slot 1..4. */
+    public static String start4P(int[] slotToPid) {
+        return MSG_START + " 4 " + slotToPid[1] + " " + slotToPid[2] + " " + slotToPid[3] + " " + slotToPid[4];
+    }
+
+    public static String teamSelect(int team) {
+        return CMD_TEAM_SELECT + " " + team;
+    }
+
+    /** prefs[1..4] = team choice (0=unset, 1=Team1, 2=Team2) for each connection slot. */
+    public static String teamRoster(int[] prefs) {
+        return MSG_TEAM_ROSTER + " " + prefs[1] + " " + prefs[2] + " " + prefs[3] + " " + prefs[4];
     }
 
     public static String state(String json) {

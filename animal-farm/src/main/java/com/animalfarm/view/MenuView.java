@@ -29,9 +29,9 @@ public class MenuView {
     }
 
     public MenuView(Runnable onStartGame, Runnable onPlayOnline, java.util.function.Consumer<Scene> onSetScene) {
-        this.onStartGame  = onStartGame;
+        this.onStartGame = onStartGame;
         this.onPlayOnline = onPlayOnline;
-        this.onSetScene   = onSetScene;
+        this.onSetScene = onSetScene;
 
         loadFont();
         createEmptyScene();
@@ -199,11 +199,12 @@ public class MenuView {
     }
 
     private void createCreditsScenes() {
-        String page1Text =
-            "Sa Kabukiran is inspired by Khan Kluay (2006), Thailand's first 3D computer-animated film.\n\n" +
-            "This game was developed by Jeoff Nathaniel M. Conde, John Michael Magpantay, " +
-            "and Kristan Louie Escarilla, created as a final project for CMSC 137 — Data Communications and Networking, " +
-            "Second Semester, A.Y. 2025–2026. Built using Java 21 and JavaFX 21 (OpenJFX).";
+        String page1Text = "Sa Kabukiran is inspired by Khan Kluay (2006), Thailand's first 3D computer-animated film.\n\n"
+                +
+                "This game was developed by Jeoff Nathaniel M. Conde, John Michael Magpantay, " +
+                "and Kristan Louie Escarilla, created as a final project for CMSC 137 — Data Communications and Networking, "
+                +
+                "Second Semester, A.Y. 2025–2026. Built using Java 21 and JavaFX 21 (OpenJFX).";
 
         creditsScene1 = createPagedScene("credits", page1Text, null, null, null, null);
     }
@@ -250,20 +251,23 @@ public class MenuView {
         buttonLayout.setPadding(new Insets(0, 50, 40, 50));
 
         if (leftBtnText != null) {
-            Button leftBtn = createImageButton("/ui/previous-button.png", "/ui/previous-button-selected.png", () -> leftBtnAction.run());
+            Button leftBtn = createImageButton("/ui/previous-button.png", "/ui/previous-button-selected.png",
+                    () -> leftBtnAction.run());
             StackPane.setAlignment(leftBtn, Pos.BOTTOM_LEFT);
             buttonLayout.getChildren().add(leftBtn);
         }
 
-        Button mainMenuBtn = createImageButton("/ui/return-to-menu-button.png", "/ui/return-to-menu-button-selected.png", () -> {
-            if (onSetScene != null)
-                onSetScene.accept(mainMenuScene);
-        });
+        Button mainMenuBtn = createImageButton("/ui/return-to-menu-button.png",
+                "/ui/return-to-menu-button-selected.png", () -> {
+                    if (onSetScene != null)
+                        onSetScene.accept(mainMenuScene);
+                });
         StackPane.setAlignment(mainMenuBtn, Pos.BOTTOM_CENTER);
         buttonLayout.getChildren().add(mainMenuBtn);
 
         if (rightBtnText != null) {
-            Button rightBtn = createImageButton("/ui/next-button.png", "/ui/next-button-selected.png", () -> rightBtnAction.run());
+            Button rightBtn = createImageButton("/ui/next-button.png", "/ui/next-button-selected.png",
+                    () -> rightBtnAction.run());
             StackPane.setAlignment(rightBtn, Pos.BOTTOM_RIGHT);
             buttonLayout.getChildren().add(rightBtn);
         }
@@ -325,66 +329,57 @@ public class MenuView {
     }
 
     private void createRulesScenes() {
-        String p1 =
-            "SA KABUKIRAN (4-PLAYER)\n\n" +
-            "OBJECTIVE\n" +
-            "Score the most points before the 100-second timer runs out. " +
-            "Earn 1 point every time your animal successfully crosses into an opponent's barn.\n\n" +
-            "CONTROLS (ALL PLAYERS)\n" +
-            "↑ / ↓ — Switch Lanes\n" +
-            "SPACE — Deploy Animal";
+        String p1 = "SA KABUKIRAN (4-PLAYER)\n\n" +
+                "OBJECTIVE\n" +
+                "Score the most points before the 100-second timer runs out. " +
+                "Earn 1 point every time your animal successfully crosses into an opponent's barn.\n\n" +
+                "CONTROLS (ALL PLAYERS)\n" +
+                "↑ / ↓ — Switch Lanes\n" +
+                "SPACE — Deploy Animal";
 
-        String p2 =
-            "Fast and cheap — your most nimble unit.\n" +
-            "Low HP and no armor, but its speed lets it slip past battles quickly.\n" +
-            "Best used to sneak a point when lanes are open.\n\n" +
-            "HP: 50  |  Speed: 80  |  Armor: 0  |  Damage: 5";
+        String p2 = "Fast and cheap — your most nimble unit.\n" +
+                "Low HP and no armor, but its speed lets it slip past battles quickly.\n" +
+                "Best used to sneak a point when lanes are open.\n\n" +
+                "HP: 50  |  Speed: 80  |  Armor: 0  |  Damage: 5";
 
-        String p3 =
-            "A balanced all-rounder with decent HP and a solid punch.\n" +
-            "Moves at a moderate pace — reliable for general pushing.\n\n" +
-            "HP: 100  |  Speed: 50  |  Armor: 2  |  Damage: 10";
+        String p3 = "A balanced all-rounder with decent HP and a solid punch.\n" +
+                "Moves at a moderate pace — reliable for general pushing.\n\n" +
+                "HP: 100  |  Speed: 50  |  Armor: 2  |  Damage: 10";
 
-        String p4 =
-            "Heavy hitter with high HP and strong damage.\n" +
-            "Slow to move but dominates head-to-head fights.\n" +
-            "Best for breaking through enemy pushes.\n\n" +
-            "HP: 200  |  Speed: 30  |  Armor: 5  |  Damage: 20";
+        String p4 = "Heavy hitter with high HP and strong damage.\n" +
+                "Slow to move but dominates head-to-head fights.\n" +
+                "Best for breaking through enemy pushes.\n\n" +
+                "HP: 200  |  Speed: 30  |  Armor: 5  |  Damage: 20";
 
-        String p5 =
-            "The tankiest unit — highest HP and best armor in the game.\n" +
-            "Moves slowly but is extremely hard to stop once it gets going.\n" +
-            "Low damage, but it absorbs hits for other units behind it.\n\n" +
-            "HP: 250  |  Speed: 25  |  Armor: 10  |  Damage: 15";
+        String p5 = "The tankiest unit — highest HP and best armor in the game.\n" +
+                "Moves slowly but is extremely hard to stop once it gets going.\n" +
+                "Low damage, but it absorbs hits for other units behind it.\n\n" +
+                "HP: 250  |  Speed: 25  |  Armor: 10  |  Damage: 15";
 
-        String p6 =
-            "Maximum armor, making it resistant to damage — a wall on legs.\n" +
-            "Very slow and low damage, but nearly impossible to push back.\n\n" +
-            "HP: 300  |  Speed: 20  |  Armor: 15  |  Damage: 8";
+        String p6 = "Maximum armor, making it resistant to damage — a wall on legs.\n" +
+                "Very slow and low damage, but nearly impossible to push back.\n\n" +
+                "HP: 300  |  Speed: 20  |  Armor: 15  |  Damage: 8";
 
-        String p7 =
-            "LOBBY SYSTEM\n" +
-            "The host creates a room code; joiners enter the code to connect.\n\n" +
-            "THE QUEUE\n" +
-            "You have a visible queue of 3 randomly assigned animals.\n\n" +
-            "COMBAT\n" +
-            "Animals automatically move forward. When they collide, the side with higher total HP pushes the other back.\n\n" +
-            "COOLDOWN\n" +
-            "There is a 2-second cooldown between animal deployments.";
+        String p7 = "LOBBY SYSTEM\n" +
+                "The host creates a room code; joiners enter the code to connect.\n\n" +
+                "THE QUEUE\n" +
+                "You have a visible queue of 3 randomly assigned animals.\n\n" +
+                "COMBAT\n" +
+                "Animals automatically move forward. When they collide, the side with higher total HP pushes the other back.\n\n";
 
-        String p8 =
-            "Triggers if scores are tied at 0 seconds.\n\n" +
-            "The deploy cooldown is slashed to 1 second.\n\n" +
-            "The first player to score 1 point wins!";
+        String p8 = "Triggers if scores are tied at 0 seconds.\n\n" +
+                "The deploy cooldown is slashed to 1 second.\n\n" +
+                "The first player to score 1 point wins!";
 
-        rulesScenes[0] = buildRulesPage("rules",       null,      buildRulesTextNode(p1),                                       0);
-        rulesScenes[1] = buildRulesPage("chicken",  "animals", buildRulesAnimalNode("/chicken/right_1_chicken_walk.png", p2), 1);
-        rulesScenes[2] = buildRulesPage("pig",         null,      buildRulesAnimalNode("/pig/right_1_pig_walk.png",       p3),   2);
-        rulesScenes[3] = buildRulesPage("cow",         null,      buildRulesAnimalNode("/cow/right_1_cow_walk.png",       p4),   3);
-        rulesScenes[4] = buildRulesPage("sheep",       null,      buildRulesAnimalNode("/sheep/right_1_sheep_walk.png",   p5),   4);
-        rulesScenes[5] = buildRulesPage("llama",       null,      buildRulesAnimalNode("/llama/right_1_llama_walk.png",   p6),   5);
-        rulesScenes[6] = buildRulesPage("how to play", null,      buildRulesTextNode(p7),                                       6);
-        rulesScenes[7] = buildRulesPage("sudden death", null,     buildRulesTextNode(p8),                                       7);
+        rulesScenes[0] = buildRulesPage("rules", null, buildRulesTextNode(p1), 0);
+        rulesScenes[1] = buildRulesPage("chicken", "animals",
+                buildRulesAnimalNode("/chicken/right_1_chicken_walk.png", p2), 1);
+        rulesScenes[2] = buildRulesPage("pig", null, buildRulesAnimalNode("/pig/right_1_pig_walk.png", p3), 2);
+        rulesScenes[3] = buildRulesPage("cow", null, buildRulesAnimalNode("/cow/right_1_cow_walk.png", p4), 3);
+        rulesScenes[4] = buildRulesPage("sheep", null, buildRulesAnimalNode("/sheep/right_1_sheep_walk.png", p5), 4);
+        rulesScenes[5] = buildRulesPage("llama", null, buildRulesAnimalNode("/llama/right_1_llama_walk.png", p6), 5);
+        rulesScenes[6] = buildRulesPage("how to play", null, buildRulesTextNode(p7), 6);
+        rulesScenes[7] = buildRulesPage("sudden death", null, buildRulesTextNode(p8), 7);
     }
 
     private Scene buildRulesPage(String titleText, String subtitle, javafx.scene.Node contentNode, int idx) {
@@ -424,17 +419,27 @@ public class MenuView {
         buttonLayout.setPadding(new Insets(0, 50, 40, 50));
 
         if (idx > 0) {
-            Button prevBtn = createImageButton("/ui/previous-button.png", "/ui/previous-button-selected.png", () -> { if (onSetScene != null) onSetScene.accept(rulesScenes[idx - 1]); });
+            Button prevBtn = createImageButton("/ui/previous-button.png", "/ui/previous-button-selected.png", () -> {
+                if (onSetScene != null)
+                    onSetScene.accept(rulesScenes[idx - 1]);
+            });
             StackPane.setAlignment(prevBtn, Pos.BOTTOM_LEFT);
             buttonLayout.getChildren().add(prevBtn);
         }
 
-        Button mainMenuBtn = createImageButton("/ui/return-to-menu-button.png", "/ui/return-to-menu-button-selected.png", () -> { if (onSetScene != null) onSetScene.accept(mainMenuScene); });
+        Button mainMenuBtn = createImageButton("/ui/return-to-menu-button.png",
+                "/ui/return-to-menu-button-selected.png", () -> {
+                    if (onSetScene != null)
+                        onSetScene.accept(mainMenuScene);
+                });
         StackPane.setAlignment(mainMenuBtn, Pos.BOTTOM_CENTER);
         buttonLayout.getChildren().add(mainMenuBtn);
 
         if (idx < rulesScenes.length - 1) {
-            Button nextBtn = createImageButton("/ui/next-button.png", "/ui/next-button-selected.png", () -> { if (onSetScene != null) onSetScene.accept(rulesScenes[idx + 1]); });
+            Button nextBtn = createImageButton("/ui/next-button.png", "/ui/next-button-selected.png", () -> {
+                if (onSetScene != null)
+                    onSetScene.accept(rulesScenes[idx + 1]);
+            });
             StackPane.setAlignment(nextBtn, Pos.BOTTOM_RIGHT);
             buttonLayout.getChildren().add(nextBtn);
         }
@@ -449,7 +454,8 @@ public class MenuView {
 
     private javafx.scene.Node buildRulesTextNode(String text) {
         Label content = new Label(text);
-        content.setStyle("-fx-font-family: " + fontFam + "; -fx-font-size: 14px; -fx-text-fill: white; -fx-line-spacing: 8px;");
+        content.setStyle(
+                "-fx-font-family: " + fontFam + "; -fx-font-size: 14px; -fx-text-fill: white; -fx-line-spacing: 8px;");
         content.setWrapText(true);
         content.setMaxWidth(780);
         content.setEffect(makeDropShadow());
@@ -465,10 +471,12 @@ public class MenuView {
                 iv.setFitHeight(150);
                 iv.setPreserveRatio(true);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         Label textLbl = new Label(desc);
-        textLbl.setStyle("-fx-font-family: " + fontFam + "; -fx-font-size: 14px; -fx-text-fill: white; -fx-line-spacing: 8px;");
+        textLbl.setStyle(
+                "-fx-font-family: " + fontFam + "; -fx-font-size: 14px; -fx-text-fill: white; -fx-line-spacing: 8px;");
         textLbl.setWrapText(true);
         textLbl.setMaxWidth(580);
         textLbl.setEffect(makeDropShadow());

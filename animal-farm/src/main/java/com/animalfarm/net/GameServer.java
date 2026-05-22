@@ -31,6 +31,8 @@ public class GameServer {
     private final BlockingQueue<ClientHandler.Command> inbound = new LinkedBlockingQueue<>();
     private final Map<Integer, String> nicknames = new ConcurrentHashMap<>();
     private final Runnable onGameOver;
+    private final int[] teamPrefs = new int[5];                            // slot 1-4 → chosen team (0=unset,1,2)
+    private final Map<Integer, Integer> slotToPid = new ConcurrentHashMap<>(); // resolved at startGame
 
     private ServerSocket serverSocket;
     private Thread acceptThread;
@@ -61,7 +63,9 @@ public class GameServer {
     public int getConnectedPlayers() { return clients.size(); }
 
     public void startAccepting() throws IOException {
-        serverSocket = new ServerSocket(GameConfig.SERVER_PORT);
+        serverSocket = new ServerSocket();
+        serverSocket.setReuseAddress(true);
+        serverSocket.bind(new java.net.InetSocketAddress(GameConfig.SERVER_PORT));
         acceptThread = Thread.ofVirtual().start(this::acceptLoop);
         Thread.ofVirtual().start(this::lobbyRelayLoop);
         beaconThread = Thread.ofVirtual().start(this::beaconLoop);
@@ -99,6 +103,15 @@ public class GameServer {
                     nicknames.put(cmd.playerId(), name);
                     broadcast(Protocol.nickUpdate(cmd.playerId(), name));
                     broadcast(Protocol.chat(0, "** " + name + " joined the lobby"));
+                } else if (Protocol.CMD_TEAM_SELECT.equals(verb) && requiredPlayers == 4) {
+                    String[] a = Protocol.args(cmd.line());
+                    if (a.length > 0) {
+                        int team = parseInt(a[0], 0);
+                        if (team == 1 || team == 2) {
+                            teamPrefs[cmd.playerId()] = team;
+                            broadcast(Protocol.teamRoster(teamPrefs));
+                        }
+                    }
                 }
             }
             try { Thread.sleep(50); } catch (InterruptedException e) { break; }
@@ -106,16 +119,29 @@ public class GameServer {
     }
 
     private void acceptLoop() {
-        while (!serverSocket.isClosed() && clients.size() < requiredPlayers) {
+        while (!serverSocket.isClosed() && !gameRunning) {
             try {
                 Socket sock = serverSocket.accept();
-                int pid = clients.size() + 1;
+                // Reject if lobby is already at capacity or game has started
+                if (gameRunning || clients.size() >= requiredPlayers) {
+                    try { sock.close(); } catch (IOException ignored) {}
+                    continue;
+                }
+                java.util.Set<Integer> usedSlots = new java.util.HashSet<>();
+                for (ClientHandler c : clients) usedSlots.add(c.getPlayerId());
+                int nextPid = 1;
+                while (usedSlots.contains(nextPid)) nextPid++;
+                final int pid = nextPid;
                 ClientHandler handler = new ClientHandler(pid, sock, inbound, () -> onClientDisconnect(pid));
                 clients.add(handler);
                 Thread.ofVirtual().start(handler);
 
-                // Handshake: tell this client their player ID and the lobby code
+                // Handshake: tell this client their slot ID and the lobby code
                 handler.send(Protocol.lobbyOk(pid, lobbyCode));
+                // Replay existing nicknames and team prefs so late joiners see the full state
+                for (Map.Entry<Integer, String> e : nicknames.entrySet())
+                    handler.send(Protocol.nickUpdate(e.getKey(), e.getValue()));
+                handler.send(Protocol.teamRoster(teamPrefs));
                 // Tell everyone (including the new client) current player count
                 broadcast(Protocol.playerJoined(clients.size(), requiredPlayers));
 
@@ -135,9 +161,27 @@ public class GameServer {
 
     public void startGame() {
         if (gameRunning) return;
-        if (clients.size() < requiredPlayers) return; // don't start with incomplete roster
-        gameRunning = true;
-        broadcast(Protocol.start(requiredPlayers));
+        if (clients.size() < requiredPlayers) return;
+        if (requiredPlayers == 4) {
+            int t1 = 0, t2 = 0;
+            for (ClientHandler c : clients) {
+                int p = teamPrefs[c.getPlayerId()];
+                if (p == 1) t1++; else if (p == 2) t2++;
+            }
+            if (t1 != 2 || t2 != 2) {
+                ClientHandler host = clients.isEmpty() ? null : clients.get(0);
+                if (host != null)
+                    host.send(Protocol.chat(0, "** Teams must be evenly split (2 v 2) before starting the game."));
+                return;
+            }
+            int[] mapping = resolvePidMapping();
+            for (int slot = 1; slot <= 4; slot++) slotToPid.put(slot, mapping[slot]);
+            gameRunning = true;
+            broadcast(Protocol.start4P(mapping));
+        } else {
+            gameRunning = true;
+            broadcast(Protocol.start(requiredPlayers));
+        }
         ticker = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "game-server-tick");
             t.setDaemon(true);
@@ -168,6 +212,12 @@ public class GameServer {
         broadcast(Protocol.state(buildStateJson()));
 
         if (state.isGameOver()) {
+            if (!state.isSuddenDeath() && state.getScoreP1() == state.getScoreP2()) {
+                // Regulation tie — tell clients to show the announcement, then keep ticking in sudden death
+                broadcast(Protocol.gameOver(state.getScoreP1(), state.getScoreP2()));
+                state.startSuddenDeath();
+                return; // do NOT stop ticker
+            }
             broadcast(Protocol.gameOver(state.getScoreP1(), state.getScoreP2()));
             ticker.shutdown();
             gameRunning = false;
@@ -178,7 +228,7 @@ public class GameServer {
     private void processCommand(ClientHandler.Command cmd) {
         String verb = Protocol.verb(cmd.line());
         String[] args = Protocol.args(cmd.line());
-        int pid = cmd.playerId();
+        int pid = slotToPid.getOrDefault(cmd.playerId(), cmd.playerId());
 
         switch (verb) {
             case Protocol.CMD_SPAWN -> {
@@ -275,7 +325,10 @@ public class GameServer {
         if (gameRunning) return; // mid-game disconnects not handled here
         clients.removeIf(c -> c.getPlayerId() == pid);
         String name = nicknames.remove(pid);
+        if (pid >= 1 && pid <= 4) teamPrefs[pid] = 0;  // clear team choice for this slot
         broadcast(Protocol.playerJoined(clients.size(), requiredPlayers));
+        broadcast(Protocol.nickUpdate(pid, ""));        // tell clients to clear this slot
+        broadcast(Protocol.teamRoster(teamPrefs));      // updated roster without departed player
         if (name != null) broadcast(Protocol.chat(0, "** " + name + " left the lobby"));
     }
 
@@ -336,6 +389,25 @@ public class GameServer {
         }
 
         return ips.isEmpty() ? "127.0.0.1" : String.join(", ", ips);
+    }
+
+    private int[] resolvePidMapping() {
+        List<Integer> team1 = new ArrayList<>(), team2 = new ArrayList<>(), unassigned = new ArrayList<>();
+        for (ClientHandler c : clients) {
+            int slot = c.getPlayerId();
+            if      (teamPrefs[slot] == 1) team1.add(slot);
+            else if (teamPrefs[slot] == 2) team2.add(slot);
+            else                           unassigned.add(slot);
+        }
+        for (int slot : unassigned) {
+            if (team1.size() < 2) team1.add(slot); else team2.add(slot);
+        }
+        int[] mapping = new int[5];
+        int pid = 1;
+        for (int slot : team1) { if (pid <= 2) mapping[slot] = pid++; }
+        pid = 3;
+        for (int slot : team2) { if (pid <= 4) mapping[slot] = pid++; }
+        return mapping;
     }
 
     private static int parseInt(String s, int fallback) {
