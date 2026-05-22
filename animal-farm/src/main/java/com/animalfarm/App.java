@@ -46,6 +46,7 @@ public class App extends Application {
 
         stage.setTitle("Sa Kabukiran");
         stage.setScene(menuView.getMainMenuScene());
+        stage.setResizable(false);
         stage.show();
 
         AudioManager.getInstance().playLanding();
@@ -113,8 +114,7 @@ public class App extends Application {
             onReplay.run();
         });
 
-        Button menuBtn = buildCardButton(pf, "MAIN MENU", "#7a1a1a", "#ffaaaa");
-        menuBtn.setOnAction(e -> {
+        Button menuBtn = buildImageButton("/ui/return-to-menu-button.png", "/ui/return-to-menu-button-selected.png", 30, () -> {
             AudioManager.getInstance().playClick();
             onMenu.run();
         });
@@ -169,6 +169,48 @@ public class App extends Application {
         Button btn = new Button(text);
         btn.setStyle("-fx-font-family: " + pf + "; -fx-font-size: 10px; -fx-background-color: " + bgColor
                 + "; -fx-text-fill: " + textColor + "; -fx-cursor: hand; -fx-padding: 10 20 10 20;");
+        return btn;
+    }
+
+    private Button buildImageButton(String normalPath, String selectedPath, int fitHeight, Runnable action) {
+        Button btn = new Button();
+        btn.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-padding: 0;");
+        try {
+            java.io.InputStream normalIs = getClass().getResourceAsStream(normalPath);
+            java.io.InputStream selectedIs = getClass().getResourceAsStream(selectedPath);
+
+            if (normalIs != null && selectedIs != null) {
+                javafx.scene.image.Image normalImg = new javafx.scene.image.Image(normalIs);
+                javafx.scene.image.Image selectedImg = new javafx.scene.image.Image(selectedIs);
+
+                javafx.scene.image.ImageView iv = new javafx.scene.image.ImageView(normalImg);
+                iv.setPreserveRatio(true);
+                iv.setFitHeight(fitHeight);
+
+                btn.setGraphic(iv);
+
+                btn.setOnMouseEntered(e -> {
+                    iv.setImage(selectedImg);
+                    iv.setScaleX(1.05);
+                    iv.setScaleY(1.05);
+                });
+
+                btn.setOnMouseExited(e -> {
+                    iv.setImage(normalImg);
+                    iv.setScaleX(1.0);
+                    iv.setScaleY(1.0);
+                });
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        btn.setOnAction(e -> {
+            if (action != null) {
+                action.run();
+            }
+        });
+
         return btn;
     }
 
@@ -279,7 +321,7 @@ public class App extends Application {
                 ? (myPid <= 2 ? myPid + 2 : myPid - 2)   // 1→3, 2→4, 3→1, 4→2
                 : (myPid == 1 ? 2 : 1);
 
-        Canvas canvas = new Canvas(GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT);
+        Canvas canvas = new Canvas(GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT);
         GraphicsContext gc = canvas.getGraphicsContext2D();
 
         String pf = menuView.getFontFam();
@@ -293,9 +335,12 @@ public class App extends Application {
         Label p1Hint  = new Label("SPACE");      p1Hint.setStyle("-fx-font-family: " + pf + "; -fx-font-size: 6px; -fx-text-fill: #ffee88;");
         VBox p1NextInfo = new VBox(2, p1NextN, p1Hint);
         p1NextInfo.setAlignment(Pos.CENTER_LEFT);
-        HBox p1HUD = new HBox(10, p1NextV, p1NextInfo, new VBox(4, p1Score, p1CD));
+        VBox p1ScoreBox = new VBox(4, p1Score, p1CD);
+        p1ScoreBox.setAlignment(Pos.CENTER_LEFT);
+        HBox p1HUD = new HBox(10, p1NextV, p1NextInfo, p1ScoreBox);
+        HBox.setMargin(p1ScoreBox, new Insets(0, 0, 0, 60));
         p1HUD.setAlignment(Pos.CENTER_LEFT);
-        p1HUD.setPadding(new Insets(10));
+        p1HUD.setPadding(new Insets(0, 0, 15, 45));
 
         Label p2Score = new Label("Score: 0");   p2Score.setStyle(base);
         Label p2CD    = new Label("READY");      p2CD.setStyle(base + " -fx-text-fill: #88ff88;");
@@ -304,17 +349,19 @@ public class App extends Application {
         Label p2Hint  = new Label("SPACE");      p2Hint.setStyle("-fx-font-family: " + pf + "; -fx-font-size: 6px; -fx-text-fill: #ffee88;");
         VBox p2NextInfo = new VBox(2, p2NextN, p2Hint);
         p2NextInfo.setAlignment(Pos.CENTER_RIGHT);
-        HBox p2HUD = new HBox(10, new VBox(4, p2Score, p2CD), p2NextInfo, p2NextV);
+        VBox p2ScoreBox = new VBox(4, p2Score, p2CD);
+        p2ScoreBox.setAlignment(Pos.CENTER_RIGHT);
+        HBox p2HUD = new HBox(10, p2ScoreBox, p2NextInfo, p2NextV);
+        HBox.setMargin(p2ScoreBox, new Insets(0, 60, 0, 0));
         p2HUD.setAlignment(Pos.CENTER_RIGHT);
-        p2HUD.setPadding(new Insets(10));
+        p2HUD.setPadding(new Insets(0, 45, 15, 0));
 
         Label timerLabel = new Label("1:40");
         timerLabel.setStyle("-fx-font-family: " + pf + "; -fx-font-size: 14px; -fx-text-fill: white;");
-        Button backBtn = new Button("MENU");
-        backBtn.setStyle("-fx-font-family: " + pf + "; -fx-font-size: 9px; -fx-background-color: #cc3333; -fx-text-fill: white; -fx-cursor: hand;");
-        backBtn.setOnAction(e -> stopOnlineGameAndReturnToMenu());
+        Button backBtn = buildImageButton("/ui/return-to-menu-button.png", "/ui/return-to-menu-button-selected.png", 25, () -> stopOnlineGameAndReturnToMenu());
         VBox centerPanel = new VBox(4, timerLabel, backBtn);
         centerPanel.setAlignment(Pos.CENTER);
+        centerPanel.setPadding(new Insets(15, 0, 0, 0));
 
         HBox hudContent = new HBox();
         hudContent.setAlignment(Pos.CENTER);
@@ -324,8 +371,9 @@ public class App extends Application {
 
         StackPane hudStack = new StackPane();
         hudStack.setPrefHeight(GameConfig.HUD_HEIGHT);
+        hudStack.setMaxHeight(GameConfig.HUD_HEIGHT);
         try {
-            java.io.InputStream is = getClass().getResourceAsStream("/ui/grassland.png");
+            java.io.InputStream is = getClass().getResourceAsStream("/ui/game-proper-board.png");
             if (is != null) {
                 ImageView bg = new ImageView(new Image(is));
                 bg.setFitWidth(GameConfig.WINDOW_WIDTH); bg.setFitHeight(GameConfig.HUD_HEIGHT); bg.setPreserveRatio(false);
@@ -334,8 +382,8 @@ public class App extends Application {
         } catch (Exception ignored) {}
         hudStack.getChildren().add(hudContent);
 
-        VBox gameColumn = new VBox(0, canvas, hudStack);
-        StackPane root = new StackPane(gameColumn);
+        StackPane root = new StackPane(canvas, hudStack);
+        StackPane.setAlignment(hudStack, Pos.BOTTOM_CENTER);
 
         GameRenderer renderer = new GameRenderer(gc, myTeamId);
         HUDRenderer hudRenderer = new HUDRenderer(
@@ -384,7 +432,7 @@ public class App extends Application {
     }
 
     private void setupGame(GameState state) {
-        Canvas canvas = new Canvas(GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT);
+        Canvas canvas = new Canvas(GameConfig.WINDOW_WIDTH, GameConfig.WINDOW_HEIGHT + GameConfig.HUD_HEIGHT);
         GraphicsContext gc = canvas.getGraphicsContext2D();
 
         String pf = menuView.getFontFam();
@@ -405,9 +453,12 @@ public class App extends Application {
         p1Hint.setStyle("-fx-font-family: " + pf + "; -fx-font-size: 6px; -fx-text-fill: #ffee88;");
         VBox p1NextInfo = new VBox(2, p1NextN, p1Hint);
         p1NextInfo.setAlignment(Pos.CENTER_LEFT);
-        HBox p1HUD = new HBox(10, p1NextV, p1NextInfo, new VBox(4, p1Score, p1CD));
+        VBox p1ScoreBox = new VBox(4, p1Score, p1CD);
+        p1ScoreBox.setAlignment(Pos.CENTER_LEFT);
+        HBox p1HUD = new HBox(10, p1NextV, p1NextInfo, p1ScoreBox);
+        HBox.setMargin(p1ScoreBox, new Insets(0, 0, 0, 60));
         p1HUD.setAlignment(Pos.CENTER_LEFT);
-        p1HUD.setPadding(new Insets(10));
+        p1HUD.setPadding(new Insets(0, 0, 15, 45));
 
         // P2 Panel
         Label p2Score = new Label("Score: 0");
@@ -424,19 +475,20 @@ public class App extends Application {
         p2Hint.setStyle("-fx-font-family: " + pf + "; -fx-font-size: 6px; -fx-text-fill: #ffee88;");
         VBox p2NextInfo = new VBox(2, p2NextN, p2Hint);
         p2NextInfo.setAlignment(Pos.CENTER_RIGHT);
-        HBox p2HUD = new HBox(10, new VBox(4, p2Score, p2CD), p2NextInfo, p2NextV);
+        VBox p2ScoreBox = new VBox(4, p2Score, p2CD);
+        p2ScoreBox.setAlignment(Pos.CENTER_RIGHT);
+        HBox p2HUD = new HBox(10, p2ScoreBox, p2NextInfo, p2NextV);
+        HBox.setMargin(p2ScoreBox, new Insets(0, 60, 0, 0));
         p2HUD.setAlignment(Pos.CENTER_RIGHT);
-        p2HUD.setPadding(new Insets(10));
+        p2HUD.setPadding(new Insets(0, 45, 15, 0));
 
         // Center Panel
         Label timerLabel = new Label("1:40");
         timerLabel.setStyle("-fx-font-family: " + pf + "; -fx-font-size: 14px; -fx-text-fill: white;");
-        Button backBtn = new Button("MENU");
-        backBtn.setStyle("-fx-font-family: " + pf
-                + "; -fx-font-size: 9px; -fx-background-color: #cc3333; -fx-text-fill: white; -fx-cursor: hand;");
-        backBtn.setOnAction(e -> stopGameAndReturnToMenu());
+        Button backBtn = buildImageButton("/ui/return-to-menu-button.png", "/ui/return-to-menu-button-selected.png", 25, () -> stopGameAndReturnToMenu());
         VBox centerPanel = new VBox(4, timerLabel, backBtn);
         centerPanel.setAlignment(Pos.CENTER);
+        centerPanel.setPadding(new Insets(15, 0, 0, 0));
 
         HBox hudContent = new HBox();
         hudContent.setAlignment(Pos.CENTER);
@@ -448,8 +500,9 @@ public class App extends Application {
 
         StackPane hudStack = new StackPane();
         hudStack.setPrefHeight(GameConfig.HUD_HEIGHT);
+        hudStack.setMaxHeight(GameConfig.HUD_HEIGHT);
         try {
-            java.io.InputStream is = getClass().getResourceAsStream("/ui/grassland.png");
+            java.io.InputStream is = getClass().getResourceAsStream("/ui/game-proper-board.png");
             if (is != null) {
                 ImageView bg = new ImageView(new Image(is));
                 bg.setFitWidth(GameConfig.WINDOW_WIDTH);
@@ -461,8 +514,8 @@ public class App extends Application {
         }
         hudStack.getChildren().add(hudContent);
 
-        VBox gameColumn = new VBox(0, canvas, hudStack);
-        StackPane root = new StackPane(gameColumn);
+        StackPane root = new StackPane(canvas, hudStack);
+        StackPane.setAlignment(hudStack, Pos.BOTTOM_CENTER);
 
         GameRenderer renderer = new GameRenderer(gc);
         HUDRenderer hudRenderer = new HUDRenderer(p1CD, p1Score, p1NextV, p1NextN, p1Hint, p2CD, p2Score, p2NextV,
